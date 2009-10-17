@@ -1,6 +1,6 @@
 #
 # Test cases specifically for the Pawn language.
-# $Id$
+# $Id: pawn.test 741 2007-04-21 19:01:55Z bengardner $
 #
 # test.name  config.file  input.file
 

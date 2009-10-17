@@ -1,6 +1,6 @@
 #
 # Test cases specifically for the C++ language.
-# $Id$
+# $Id: cpp.test 1641 2009-10-16 01:29:30Z bengardner $
 #
 # test.name  config.file  input.file
 

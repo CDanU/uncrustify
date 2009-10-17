@@ -1,6 +1,6 @@
 #
 # Test cases specifically for the C language.
-# $Id$
+# $Id: c.test 1630 2009-10-10 17:18:35Z bengardner $
 #
 # test.name  config.file  input.file
 

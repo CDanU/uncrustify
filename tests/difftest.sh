@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id$
+# $Id: difftest.sh 798 2007-07-24 16:01:09Z bengardner $
 #
 # Shows the difference for a failed test
 #  
