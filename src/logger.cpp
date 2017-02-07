@@ -394,7 +394,7 @@ void log_hex_blk(log_sev_t sev, const void *data, size_t len)
 
 log_func::log_func(const char *name, int line)
 {
-   g_fq.push_back(log_fcn_info(name, line));
+   g_fq.emplace_back(name, line);
 }
 
 
