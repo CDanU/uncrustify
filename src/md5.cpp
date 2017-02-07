@@ -216,10 +216,10 @@ void MD5::Final(UINT8 digest[16])
 /* The four core functions - F1 is optimized somewhat */
 
 /* #define F1(x, y, z) (x & y | ~x & z) */
-#define F1(x, y, z)    (z ^ (x & (y ^ z)))
+#define F1(x, y, z)    ((z) ^ ((x) & ((y) ^ (z))))
 #define F2(x, y, z)    F1(z, x, y)
-#define F3(x, y, z)    (x ^ y ^ z)
-#define F4(x, y, z)    (y ^ (x | ~z))
+#define F3(x, y, z)    ((x) ^ (y) ^ (z))
+#define F4(x, y, z)    ((y) ^ ((x) | ~(z)))
 
 /* This is the central step in the MD5 algorithm. */
 #define MD5STEP(f, w, x, y, z, data, s) \
