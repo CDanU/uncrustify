@@ -46,7 +46,7 @@ struct log_buf
    FILE       *log_file;
    log_sev_t  sev;
    int        in_log;
-   char       buf[256];
+   char       buf[256]{};
    size_t     buf_len;
    log_mask_t mask;
    bool       show_hdr;

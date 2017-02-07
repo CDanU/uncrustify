@@ -148,7 +148,7 @@ void brace_cleanup(void)
 {
    LOG_FUNC_ENTRY();
    chunk_t       *pc;
-   parse_frame_t frm;
+   parse_frame_t frm{};
 
    cpd.unc_stage = unc_stage_e::BRACE_CLEANUP;
 

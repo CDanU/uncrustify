@@ -334,7 +334,7 @@ static bool split_line(chunk_t *start)
    /**
     * Try to find the best spot to split the line
     */
-   cw_entry ent;
+   cw_entry ent{};
 
    memset(&ent, 0, sizeof(ent));
    chunk_t *pc = start;

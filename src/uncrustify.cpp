@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
 
       if (unc_homedir(home))
       {
-         struct stat tmp_stat;
+         struct stat tmp_stat{};
          string      path;
 
          path = home + "/uncrustify.cfg";
@@ -945,7 +945,7 @@ static void make_folders(const string &filename)
 static int load_mem_file(const char *filename, file_mem &fm)
 {
    int         retval = -1;
-   struct stat my_stat;
+   struct stat my_stat{};
    FILE        *p_file;
 
    fm.raw.clear();
@@ -1091,7 +1091,7 @@ static const char *make_output_filename(char *buf, size_t buf_size,
 
 static bool file_content_matches(const string &filename1, const string &filename2)
 {
-   struct stat st1, st2;
+   struct stat st1{}, st2{};
    int         fd1, fd2;
 
    /* Check the sizes first */

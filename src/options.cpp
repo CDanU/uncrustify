@@ -127,7 +127,7 @@ void unc_add_option(const char *name, uncrustify_options id, argtype_e type,
    }
    group_map[current_group].options.push_back(id);
 
-   option_map_value value;
+   option_map_value value{};
 
    value.id         = id;
    value.group_id   = current_group;

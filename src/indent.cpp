@@ -583,7 +583,7 @@ void indent_text(void)
    size_t        vardefcol    = 0;
    size_t        shiftcontcol = 0;
    size_t        indent_size  = cpd.settings[UO_indent_columns].u;
-   parse_frame_t frm;
+   parse_frame_t frm{};
    bool          in_preproc = false;
    size_t        indent_column;
    size_t        parent_token_indent = 0;

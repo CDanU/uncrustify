@@ -24,14 +24,14 @@ static void do_kw_subst(chunk_t *pc);
 
 struct cmt_reflow
 {
-   chunk_t  *pc;
-   size_t   column;        /* Column of the comment start */
-   size_t   brace_col;     /* Brace column (for indenting with tabs) */
-   size_t   base_col;      /* Base column (for indenting with tabs) */
-   size_t   word_count;    /* number of words on this line */
-   size_t   xtra_indent;   /* extra indent of non-first lines (0 or 1) */
+   chunk_t  *pc{};
+   size_t   column{};        /* Column of the comment start */
+   size_t   brace_col{};     /* Brace column (for indenting with tabs) */
+   size_t   base_col{};      /* Base column (for indenting with tabs) */
+   size_t   word_count{};    /* number of words on this line */
+   size_t   xtra_indent{};   /* extra indent of non-first lines (0 or 1) */
    unc_text cont_text;     /* fixed text to output at the start of a line (0 to 3 chars) */
-   bool     reflow;        /* reflow the current line */
+   bool     reflow{};        /* reflow the current line */
 };
 
 

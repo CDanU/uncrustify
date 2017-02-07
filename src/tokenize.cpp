@@ -1865,7 +1865,7 @@ void tokenize(const deque<int> &data, chunk_t *ref)
    chunk_t       chunk;
    chunk_t       *pc    = nullptr;
    chunk_t       *rprev = nullptr;
-   parse_frame_t frm;
+   parse_frame_t frm{};
    bool          last_was_tab = false;
    size_t        prev_sp      = 0;
 

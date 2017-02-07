@@ -31,9 +31,9 @@ public:
    static void Calc(const void *data, UINT32 length, UINT8 digest[16]);
 
 private:
-   UINT32 m_buf[4];
-   UINT32 m_bits[2];
-   UINT8  m_in[64];
+   UINT32 m_buf[4]{};
+   UINT32 m_bits[2]{};
+   UINT8  m_in[64]{};
    bool   m_need_byteswap;
    bool   m_big_endian;
 
