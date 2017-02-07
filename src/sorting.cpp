@@ -13,7 +13,7 @@
 
 struct include_category
 {
-   include_category(const char *pattern)
+   explicit include_category(const char *pattern)
       : regex(pattern)
    {
    }
