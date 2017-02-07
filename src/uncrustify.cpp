@@ -61,7 +61,7 @@
 #include <vector>
 #include <deque>
 #ifdef HAVE_UTIME_H
-#include <time.h>
+#include <ctime>
 #endif
 
 /* Global data */

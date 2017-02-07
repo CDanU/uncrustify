@@ -18,7 +18,7 @@
  */
 
 #include "md5.h"
-#include <string.h>               /* memcpy, memset */
+#include <cstring>               /* memcpy, memset */
 
 
 /**

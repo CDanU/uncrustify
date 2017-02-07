@@ -13,7 +13,7 @@
 #include "uncrustify_types.h"
 #include <cstdio>
 #include <deque>
-#include <stdarg.h>
+#include <cstdarg>
 #include "unc_ctype.h"
 #include "log_levels.h"
 
