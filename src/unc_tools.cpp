@@ -25,7 +25,7 @@ void prot_the_line(int theLine, unsigned int actual_line)
       if (pc->orig_line == actual_line)
       {
          LOG_FMT(LGUY, "(%d) orig_line=%d, ", theLine, actual_line);
-         if (pc->type == CT_VBRACE_OPEN)
+         if (pc->type == CT_VBRACE_OPEN) // two times !
          {
             LOG_FMT(LGUY, "<VBRACE_OPEN>\n");
          }
