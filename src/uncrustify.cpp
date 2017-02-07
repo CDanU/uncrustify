@@ -344,7 +344,7 @@ int main(int argc, char *argv[])
    }
 
    /* make sure we have token_names.h in sync with token_enum.h */
-   assert(ARRAY_SIZE(token_names) == CT_TOKEN_COUNT_);
+   static_assert(ARRAY_SIZE(token_names) == CT_TOKEN_COUNT_, "");
 
    /* Build options map */
    register_options();
