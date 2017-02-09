@@ -363,7 +363,11 @@ static chunk_t *pawn_process_func_def(chunk_t *pc)
    chunk_t *clp  = chunk_get_next_str(pc, ")", 1, 0);
    chunk_t *last = chunk_get_next_ncnl(clp);
 
-   if (last != nullptr)
+   if (last == nullptr)
+   {
+      return(last);
+   }
+
    {
       LOG_FMT(LPFUNC, "%s: %zu] last is '%s' [%s]\n",
               __func__, last->orig_line, last->text(), get_token_name(last->type));
@@ -392,10 +396,6 @@ static chunk_t *pawn_process_func_def(chunk_t *pc)
       last = chunk_get_next_ncnl(last);
    }
 
-   if (last == nullptr)
-   {
-      return(last);
-   }
    if (last->type == CT_BRACE_OPEN)
    {
       set_chunk_parent(last, CT_FUNC_DEF);
