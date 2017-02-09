@@ -131,7 +131,7 @@ const char *Args::Params(const char *token, size_t &index)
  */
 bool Args::GetUsed(size_t idx)
 {
-   if ((m_used != nullptr) && (idx > 0) && (idx < m_count))
+   if ((m_used != nullptr) && (idx < m_count))
    {
       return((m_used[idx >> 3] & (1 << (idx & 0x07))) != 0);
    }
