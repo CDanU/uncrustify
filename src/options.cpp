@@ -2169,6 +2169,7 @@ int save_option_file(FILE *pfile, bool withDoc)
 
 void print_options(FILE *pfile)
 {
+   // TODO refactor to be undependent of type positioning
    const char *names[] =
    {
       "{ False, True }",
@@ -2177,6 +2178,7 @@ void print_options(FILE *pfile)
       "{ Auto, LF, CR, CRLF }",
       "{ Ignore, Lead, Trail }",
       "String",
+      "Unsigned Number",
    };
 
    fprintf(pfile, "# Uncrustify %s\n", UNCRUSTIFY_VERSION);
