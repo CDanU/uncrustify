@@ -596,6 +596,7 @@ enum uncrustify_options
    UO_nl_brace_catch,                 // newline between '}' and 'catch'
    UO_nl_brace_square,                // newline between '}' and ']'
    UO_nl_brace_fparen,                // newline between '}' and ')' of a function invocation
+   UO_nl_fparen_brace,                // newline between '(' and '{' of a function invocation
    UO_nl_while_brace,                 // newline between 'while' and '{'
    UO_nl_unittest_brace,              // newline between 'unittest' and '{'
    UO_nl_scope_brace,                 // Add or remove newline between 'scope (x)' and '{' (D)

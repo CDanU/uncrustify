@@ -1863,20 +1863,23 @@ static void newline_iarf_pair(chunk_t *before, chunk_t *after, argval_t av)
    LOG_FUNC_ENTRY();
    log_func_stack(LNEWLINE, "Call Stack:");
 
-   if ((before != nullptr) && (after != nullptr))
+   if (before == nullptr || after == nullptr)
    {
-      if ((av & AV_ADD) != 0)
+      return;
+   }
+
+   if (av == AV_ADD || av == AV_FORCE)
+   {
+      chunk_t *nl = newline_add_between(before, after);
+
+      if (nl && (av == AV_FORCE) && (nl->nl_count > 1)) // is nl->nl_count > 1 needed?
       {
-         chunk_t *nl = newline_add_between(before, after);
-         if (nl && (av == AV_FORCE) && (nl->nl_count > 1))
-         {
-            nl->nl_count = 1;
-         }
+         nl->nl_count = 1;
       }
-      else if ((av & AV_REMOVE) != 0)
-      {
-         newline_del_between(before, after);
-      }
+   }
+   else if (av == AV_REMOVE)
+   {
+      newline_del_between(before, after);
    }
 }
 
@@ -1903,6 +1906,21 @@ static void newline_func_multi_line(chunk_t *start)
    LOG_FMT(LNFD, "%s: called on %zu:%zu '%s' [%s/%s]\n",
            __func__, start->orig_line, start->orig_col,
            start->text(), get_token_name(start->type), get_token_name(start->parent_type));
+
+   // handle func({
+   if (start->parent_type == CT_FUNC_CALL)
+   {
+      const auto pc = chunk_get_next_ncnl(start, scope_e::PREPROC);
+
+      if (chunk_is_str(pc, "{", 1))
+      {
+         const auto atmp = cpd.settings[UO_nl_fparen_brace].a;
+         if (atmp != AV_IGNORE)
+         {
+            newline_iarf(start, atmp);
+         }
+      }
+   }
 
    bool add_start;
    bool add_args;
@@ -2643,7 +2661,7 @@ void newlines_cleanup_braces(bool first)
 
          if (cpd.settings[UO_nl_brace_fparen].a != AV_IGNORE)
          {
-            next = chunk_get_next_nc(pc, scope_e::PREPROC);
+            next = chunk_get_next_nnl(pc, scope_e::PREPROC);
             if ((next != nullptr) && (next->type == CT_FPAREN_CLOSE))
             {
                newline_iarf_pair(pc, next, cpd.settings[UO_nl_brace_fparen].a);
