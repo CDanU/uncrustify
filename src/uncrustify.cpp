@@ -768,6 +768,12 @@ int main(int argc, char *argv[])
    else
    {
       /* Doing multiple files */
+
+      if(parsed_file != nullptr)
+      {
+         usage_exit("Cannot use -p/--parsed with multiple files, use it with -f or stdin", argv[0], EX_NOINPUT);
+      }
+
       if (prefix != nullptr)
       {
          LOG_FMT(LSYS, "Output prefix: %s/\n", prefix);
