@@ -339,15 +339,16 @@ static argval_t do_space(chunk_t *first, chunk_t *second, int &min_sp, bool comp
       return(arg);
    }
 
-   if ((second->type == CT_COMMENT) &&
-       ((first->type == CT_PP_ELSE) || (first->type == CT_PP_ENDIF)))
+   if ((first->type == CT_PP_ELSE || first->type == CT_PP_ENDIF)
+       && chunk_is_comment(second)
+       && cpd.settings[UO_sp_endif_cmt].a != AV_IGNORE)
    {
-      if (cpd.settings[UO_sp_endif_cmt].a != AV_IGNORE)
-      {
-         set_chunk_type(second, CT_COMMENT_ENDIF);
-         log_rule("sp_endif_cmt");
-         return(cpd.settings[UO_sp_endif_cmt].a);
-      }
+      set_chunk_type(second, (second->type == CT_COMMENT_CPP
+                              ? CT_COMMENT_CPP_ENDIF : second->type == CT_COMMENT
+                              ? CT_COMMENT_ENDIF
+                              : CT_COMMENT_MULTI_ENDIF));
+      log_rule("sp_endif_cmt");
+      return(cpd.settings[UO_sp_endif_cmt].a);
    }
 
    if ((cpd.settings[UO_sp_before_tr_emb_cmt].a != AV_IGNORE) &&
