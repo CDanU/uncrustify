@@ -18,6 +18,7 @@
 #include "unicode.h"
 #include "helper_for_print.h"
 #include <cstdlib>
+#include "string_view.hpp"
 
 static void output_comment_multi(chunk_t *pc);
 static void output_comment_multi_simple(chunk_t *pc, bool kw_subst);
@@ -1807,15 +1808,10 @@ static bool kw_fcn_fclass(chunk_t *cmt, unc_text &out_txt)
 } // kw_fcn_fclass
 
 
-struct kw_subst_t
-{
-   const char *tag;
-   bool       (*func)(chunk_t *cmt, unc_text &out_txt);
-};
-
-
-static const kw_subst_t kw_subst_table[] =
-{
+typedef bool (*kw_fcn)(chunk_t *cmt, unc_text &out_txt);
+#define kw_subst_t std::array<std::pair<libcxx_strviewclone::string_view, kw_fcn>, 8 >
+static const kw_subst_t kw_subst_table =
+{{
    { "$(filename)",  kw_fcn_filename  },
    { "$(class)",     kw_fcn_class     },
    { "$(message)",   kw_fcn_message   },
@@ -1824,7 +1820,7 @@ static const kw_subst_t kw_subst_table[] =
    { "$(function)",  kw_fcn_function  },
    { "$(javaparam)", kw_fcn_javaparam },
    { "$(fclass)",    kw_fcn_fclass    },
-};
+}};
 
 
 /**
@@ -1836,7 +1832,7 @@ static void do_kw_subst(chunk_t *pc)
 {
    for (const auto &kw : kw_subst_table)
    {
-      int idx = pc->str.find(kw.tag);
+      int idx = pc->str.find(kw.first.data());
       if (idx < 0)
       {
          continue;
@@ -1844,7 +1840,7 @@ static void do_kw_subst(chunk_t *pc)
 
       unc_text tmp_txt;
       tmp_txt.clear();
-      if (kw.func(pc, tmp_txt))
+      if (kw.second(pc, tmp_txt))
       {
          /* if the replacement contains '\n' we need to fix the lead */
          if (tmp_txt.find("\n") >= 0)
@@ -1862,7 +1858,7 @@ static void do_kw_subst(chunk_t *pc)
                tmp_txt.replace("\n", nl_txt);
             }
          }
-         pc->str.replace(kw.tag, tmp_txt);
+         pc->str.replace(kw.first.data(), tmp_txt);
       }
    }
 } // do_kw_subst

@@ -64,6 +64,8 @@
 #include <time.h>
 #endif
 
+#include "string_view.hpp"
+
 
 /* Global data */
 cp_data_t cpd;
@@ -2052,8 +2054,9 @@ struct lang_name_t
    size_t     lang;
 };
 
-static lang_name_t language_names[] =
-{
+#define lang_name_t std::array<std::pair<libcxx_strviewclone::string_view, size_t>, 10 >
+static lang_name_t language_names =
+{{
    { "C",    LANG_C             },
    { "CPP",  LANG_CPP           },
    { "D",    LANG_D             },
@@ -2064,16 +2067,16 @@ static lang_name_t language_names[] =
    { "OC",   LANG_OC            },
    { "OC+",  LANG_OC | LANG_CPP },
    { "ECMA", LANG_ECMA          },
-};
+}};
 
 
 size_t language_flags_from_name(const char *name)
 {
    for (const auto &language : language_names)
    {
-      if (strcasecmp(name, language.name) == 0)
+      if (strcasecmp(name, language.first.data()) == 0)
       {
-         return(language.lang);
+         return(language.second);
       }
    }
    return(0);
@@ -2085,33 +2088,27 @@ const char *language_name_from_flags(size_t lang)
    /* Check for an exact match first */
    for (auto &language_name : language_names)
    {
-      if (language_name.lang == lang)
+      if (language_name.second == lang)
       {
-         return(language_name.name);
+         return(language_name.first.data());
       }
    }
 
    /* Check for the first set language bit */
    for (auto &language_name : language_names)
    {
-      if ((language_name.lang & lang) != 0)
+      if ((language_name.second & lang) != 0)
       {
-         return(language_name.name);
+         return(language_name.first.data());
       }
    }
    return("???");
 }
 
-
-struct lang_ext_t
-{
-   const char *ext;
-   const char *name;
-};
-
 /* maps file extensions to language names */
-struct lang_ext_t language_exts[] =
-{
+#define lang_ext_t std::array<std::pair<libcxx_strviewclone::string_view, libcxx_strviewclone::string_view>, 24 >
+static const constexpr lang_ext_t language_exts =
+{{
    { ".c",    "C"    },
    { ".cpp",  "CPP"  },
    { ".d",    "D"    },
@@ -2135,17 +2132,17 @@ struct lang_ext_t language_exts[] =
    { ".m",    "OC"   },
    { ".mm",   "OC+"  },
    { ".sqc",  "C"    }, // embedded SQL
-   { ".es",   "ECMA" },
-};
+   { ".es",   "ECMA" }
+}};
 
 
-const char *get_file_extension(int &idx)
+const char *get_file_extension(size_t &idx)
 {
    const char *val = nullptr;
 
-   if (idx < static_cast<int> ARRAY_SIZE(language_exts))
+   if (idx < language_exts.size())
    {
-      val = language_exts[idx].ext;
+      val = language_exts[idx].first.data();
    }
    idx++;
    return(val);
@@ -2179,11 +2176,11 @@ void print_extensions(FILE *pfile)
       bool did_one = false;
       for (auto &extension_val : g_ext_map)
       {
-         if (strcmp(extension_val.second.c_str(), language.name) == 0)
+         if (extension_val.second == language.first)
          {
             if (!did_one)
             {
-               fprintf(pfile, "file_ext %s", extension_val.second.c_str());
+               fprintf(pfile, "file_ext %s", extension_val.second.data());
                did_one = true;
             }
             fprintf(pfile, " %s", extension_val.first.c_str());
@@ -2211,9 +2208,9 @@ static size_t language_flags_from_filename(const char *filename)
 
    for (auto &lanugage : language_exts)
    {
-      if (ends_with(filename, lanugage.ext))
+      if (ends_with(filename, lanugage.first.data()))
       {
-         return(language_flags_from_name(lanugage.name));
+         return(language_flags_from_name(lanugage.second.data()));
       }
    }
 
@@ -2227,9 +2224,9 @@ static size_t language_flags_from_filename(const char *filename)
    }
    for (auto &lanugage : language_exts)
    {
-      if (ends_with(filename, lanugage.ext, false))
+      if (ends_with(filename, lanugage.first.data(), false))
       {
-         return(language_flags_from_name(lanugage.name));
+         return(language_flags_from_name(lanugage.second.data()));
       }
    }
    return(LANG_C);

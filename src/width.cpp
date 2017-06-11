@@ -22,12 +22,6 @@ struct cw_entry
    size_t  pri;
 };
 
-struct token_pri
-{
-   c_token_t tok;
-   size_t    pri;
-};
-
 
 static_inline bool is_past_width(chunk_t *pc);
 
@@ -161,9 +155,9 @@ void do_code_width(void)
    }
 }
 
-
-static const token_pri pri_table[] =
-{
+#define token_pri std::array<std::pair<c_token_t, int>, 18>
+static const constexpr token_pri pri_table =
+{{
    { CT_SEMICOLON,    1 },
    { CT_COMMA,        2 },
    { CT_BOOL,         3 },
@@ -183,17 +177,17 @@ static const token_pri pri_table[] =
    { CT_STRUCT,      25 },
    { CT_TYPE,        25 },
    { CT_TYPENAME,    25 },
-   { CT_VOLATILE,    25 },
-};
+   { CT_VOLATILE,    25 }
+}};
 
 
 static size_t get_split_pri(c_token_t tok)
 {
    for (auto token : pri_table)
    {
-      if (token.tok == tok)
+      if (token.first == tok)
       {
-         return(token.pri);
+         return(token.second);
       }
    }
    return(0);

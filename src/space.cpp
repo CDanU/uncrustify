@@ -43,19 +43,14 @@ static void log_rule2(size_t line, const char *rule, chunk_t *first, chunk_t *se
  */
 static argval_t do_space(chunk_t *first, chunk_t *second, int &min_sp, bool complete);
 
-struct no_space_table_t
-{
-   c_token_t first;
-   c_token_t second;
-};
-
+#define no_space_table_t std::array<std::pair<c_token_t, c_token_t>, 35>
 /** this table lists out all combos where a space should NOT be present
  * CT_UNKNOWN is a wildcard.
  *
  * TODO: some of these are no longer needed.
  */
-const no_space_table_t no_space_table[] =
-{
+static const constexpr no_space_table_t no_space_table =
+{{
    { CT_OC_AT,          CT_UNKNOWN       },
    { CT_INCDEC_BEFORE,  CT_WORD          },
    { CT_UNKNOWN,        CT_INCDEC_AFTER  },
@@ -91,7 +86,7 @@ const no_space_table_t no_space_table[] =
    { CT_PAREN_CLOSE,    CT_FPAREN_OPEN   },
    { CT_OC_SEL_NAME,    CT_OC_SEL_NAME   },
    { CT_TYPENAME,       CT_TYPE          },
-};
+}};
 
 #define log_rule(rule)                                             \
    do { if (log_sev_on(LSPACE)) {                                  \
