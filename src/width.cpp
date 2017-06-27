@@ -73,7 +73,7 @@ static void try_split_here(cw_entry &ent, chunk_t *pc);
  *
  * @param start The first chunk that exceeded the limit
  */
-static bool split_line(chunk_t *pc);
+static bool split_line(chunk_t * &pc);
 
 
 /**
@@ -93,7 +93,7 @@ static bool split_line(chunk_t *pc);
  * @return        the token that should have a newline
  *                inserted before it
  */
-static void split_fcn_params(chunk_t *start);
+static void split_fcn_params(chunk_t * &start);
 
 
 /**
@@ -300,7 +300,7 @@ static void try_split_here(cw_entry &ent, chunk_t *pc)
 } // try_split_here
 
 
-static bool split_line(chunk_t *start)
+static bool split_line(chunk_t * &start)
 {
    LOG_FUNC_ENTRY();
    LOG_FMT(LSPLIT, "%s(%d): start->flags ", __func__, __LINE__);
@@ -623,7 +623,7 @@ static void split_fcn_params_full(chunk_t *start)
 }
 
 
-static void split_fcn_params(chunk_t *start)
+static void split_fcn_params(chunk_t * &start)
 {
    LOG_FUNC_ENTRY();
    LOG_FMT(LSPLIT, "  %s(%d): %s", __func__, __LINE__, start->text());
