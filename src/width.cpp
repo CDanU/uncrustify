@@ -15,6 +15,7 @@
 #include "newlines.h"
 #include <cstdlib>
 #include <limits>
+#include <iostream>
 
 /**
  * abbreviations used:
@@ -623,106 +624,223 @@ static void split_fcn_params_full(chunk_t *start)
 }
 
 
-static void split_fcn_params(chunk_t * &start)
+//! adds a newline before the c chunk and re-indents it afterward with indent_col
+static void newline_and_indent(chunk_t &c, uint_fast32_t indent_col)
 {
-   LOG_FUNC_ENTRY();
-   LOG_FMT(LSPLIT, "  %s(%d): %s", __func__, __LINE__, start->text());
-#ifdef DEBUG
-   LOG_FMT(LSPLIT, "\n");
-#endif // DEBUG
+   newline_add_before(&c);
+   reindent_line(&c, indent_col);
+   cpd.changes++;
+}
 
-   // Find the opening function parenthesis
-   chunk_t *fpo = start;
-   LOG_FMT(LSPLIT, "  %s(%d):", __func__, __LINE__);
-   while (  ((fpo = chunk_get_prev(fpo)) != nullptr)
-         && (fpo->type != CT_FPAREN_OPEN))
+
+static size_t check_func_expr(chunk_t &delim_start, chunk_t &delim_end, size_t indent_col)
+{
+   assert(&delim_start != &delim_end);
+   assert(chunk_get_next(&delim_start) != &delim_end);
+
+   std::cout << "\n"
+             << "    check_func_expr:\n"
+             << "        start: " << delim_start.column << " - " << delim_start.str.c_str() << "\n"
+             << "          end: " << delim_end.column << " - " << delim_end.str.c_str() << "\n"
+             << "----------------------------------------------" << std::endl;
+
+   const int maximal_col_pos = static_cast<int>(cpd.settings[UO_code_width].u);
+   int       last_char_pos   = delim_end.column + delim_end.len() - 1;
+
+   // check for additional ';' after ')'
+   if (delim_end.type == CT_FPAREN_CLOSE)
    {
-      // do nothing
+      auto *after_delim_end = chunk_get_next_nc(&delim_end);
+      if (after_delim_end != nullptr && after_delim_end->type == CT_SEMICOLON)
+      {
+         last_char_pos = after_delim_end->column + after_delim_end->len() - 1;
+      }
    }
 
-   chunk_t *pc     = chunk_get_next_ncnl(fpo);
-   size_t  min_col = pc->column;
-
-   LOG_FMT(LSPLIT, " mincol=%zu, max_width=%zu ",
-           min_col, cpd.settings[UO_code_width].u - min_col);
-
-   int cur_width = 0;
-   int last_col  = -1;
-   LOG_FMT(LSPLIT, "  %s(%d):", __func__, __LINE__);
-   while (pc != nullptr)
+   // return if column positions are OK
+   if (last_char_pos <= maximal_col_pos)
    {
-      LOG_FMT(LSPLIT, "  %s(%d):", __func__, __LINE__);
-      if (chunk_is_newline(pc))
-      {
-         cur_width = 0;
-         last_col  = -1;
+      return(indent_col);
+   }
+
+   const auto indent_col_step = cpd.settings[UO_indent_columns].u;
+   const auto continue_col    = cpd.settings[UO_indent_continue].u;
+
+
+   auto first = chunk_get_next(&delim_start);
+   assert(first->level != 0);
+   if (continue_col != 0)
+   {
+      indent_col = (first->level - 1) * indent_col_step
+                   + (continue_col == 0 ? indent_col_step : continue_col);
+   }
+
+   // check param expr length to see if it would fit on its own line
+   //     f(int long_param_nameeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
+   // vs
+   //     long_class_nameeeeeeeeee::long_member_func_nameeeeeeeeeeeeeeeeeee(int a, int b);
+   const auto line_first_statement = (  delim_start.type == CT_NEWLINE
+                                     || delim_start.type == CT_FPAREN_OPEN);
+   if (line_first_statement)
+   {
+      auto last = chunk_get_prev(&delim_end);
+      assert(first != nullptr || last != nullptr);
+
+      const int expr_len    = last_char_pos + 1 - first->column; // including ',' or ");"
+      const int fitting_len = maximal_col_pos
+                              - ((first->level - 1) * indent_col_step
+                                 + (continue_col == 0
+                                    ? indent_col_step : continue_col));
+
+      // insert newline after delim_end if
+      if (expr_len > fitting_len)                 // expression would not fit on the next line either
+      {                                           // AND
+         if (  !chunk_is_last_on_line(delim_end)  // delim_end is not followed by an newline already
+            && delim_end.type != CT_FPAREN_CLOSE) // delim_end is not a closing parenthesis: '...);'
+         {
+            auto *after_end_delim = chunk_get_next(&delim_end);
+            assert(after_end_delim != nullptr);
+
+            newline_and_indent(*after_end_delim, indent_col);
+         }
+         // else: do nothing
       }
+      // fits on a new line, recalculate indent_col
       else
       {
-         if (last_col < 0)
-         {
-            last_col = pc->column;
-         }
-         cur_width += (pc->column - last_col) + pc->len();
-         last_col   = pc->column + pc->len();
-
-         if ((pc->type == CT_COMMA) || (pc->type == CT_FPAREN_CLOSE))
-         {
-            cur_width--;
-            LOG_FMT(LSPLIT, " width=%d ", cur_width);
-            if (  ((last_col - 1) > static_cast<int>(cpd.settings[UO_code_width].u))
-               || (pc->type == CT_FPAREN_CLOSE))
-            {
-               break;
-            }
-         }
+         indent_col = (first->level - 1) * indent_col_step
+                      + (continue_col == 0 ? indent_col_step : continue_col);
+         newline_and_indent(*first, indent_col);
       }
-      pc = chunk_get_next(pc);
+   }
+   // is too long and not the first expr, so this will be moved to a new line
+   else
+   {
+      newline_and_indent(*first, indent_col);
    }
 
-   LOG_FMT(LSPLIT, "  %s(%d):", __func__, __LINE__);
-   // back up until the prev is a comma
-   chunk_t *prev = pc;
-   while ((prev = chunk_get_prev(prev)) != nullptr)
-   {
-      LOG_FMT(LSPLIT, "  %s(%d):", __func__, __LINE__);
-      if (chunk_is_newline(prev) || (prev->type == CT_COMMA))
-      {
-         break;
-      }
-      last_col -= pc->len();
-      if (prev->type == CT_FPAREN_OPEN)
-      {
-         pc = chunk_get_next(prev);
-         if (!cpd.settings[UO_indent_paren_nl].b)
-         {
-            min_col = pc->brace_level * cpd.settings[UO_indent_columns].u + 1;
-            if (cpd.settings[UO_indent_continue].n == 0)
-            {
-               min_col += cpd.settings[UO_indent_columns].u;
-            }
-            else
-            {
-               min_col += abs(cpd.settings[UO_indent_continue].n);
-            }
-         }
+   return(indent_col);
+} // check_func_expr
 
-         // Don't split "()"
-         if (pc->type != c_token_t(prev->type + 1))
+
+static void split_fcn_params(chunk_t * &start)
+{
+   assert(start != nullptr);
+   chunk_t *fpo = nullptr;
+   chunk_t *fpc = nullptr;
+
+   if (start->type == CT_FPAREN_OPEN)
+   {
+      fpo = start;
+      fpc = chunk_skip_to_match(fpo);
+   }
+   else if (start->type == CT_FPAREN_CLOSE)
+   {
+      fpc = start;
+      fpo = chunk_skip_to_match_rev(fpc);
+   }
+   else if (start->type == CT_SEMICOLON)
+   {
+      fpc = chunk_get_prev_type(start, CT_FPAREN_CLOSE, start->level);
+      fpo = chunk_skip_to_match_rev(fpc);
+   }
+   else
+   {
+      fpo = chunk_get_prev_type(start, CT_FPAREN_OPEN, start->level - 1);
+      fpc = chunk_skip_to_match(fpo);
+   }
+
+   if (fpc == nullptr || fpo == nullptr)
+   {
+      return;
+   }
+
+   // f()
+   if (chunk_get_next(fpo) == fpc)
+   {
+      start = chunk_get_next(fpc);
+      return;
+   }
+
+
+   chunk_t *nested     = nullptr;
+   chunk_t *prev_delim = fpo;
+   auto    *pc         = chunk_get_next(fpo);
+   auto    min_pos     = pc->column;
+
+   for ( ; pc != nullptr; pc = chunk_get_next(pc))
+   {
+      assert(pc->type != CT_SEMICOLON);
+      std::cout << "    " << pc->str.c_str() << std::endl;
+
+      switch (pc->type)
+      {
+      case CT_FPAREN_CLOSE:
+      {
+         // consider only fpc as delimiter
+         if (pc != fpc)
          {
             break;
          }
+         // intentional fallthrough on fpc
+//         [[fallthrough]];  // TODO: use with c++17
+      }
+
+      case CT_COMMA:
+      case CT_NEWLINE:
+      {
+         if (pc->type == CT_NEWLINE && chunk_get_prev(pc) == prev_delim)
+         {
+            prev_delim = pc; // re-assign prev_delim to prevent empty expressions: newline , or ( newline
+         }
+         else
+         {
+            min_pos = check_func_expr(*prev_delim, *pc, min_pos);
+
+            // re-assign prev_delim, n: delim_end -> n+1: delim_start
+            prev_delim = pc;
+
+            if (nested != nullptr)
+            {
+               split_fcn_params(nested);
+               nested = nullptr;
+            }
+         }
+         break;
+      }
+
+      case CT_FPAREN_OPEN:
+      {
+         auto *next = chunk_get_next_ncnl(pc);
+         assert(next != nullptr);
+
+         if (next->type != CT_FPAREN_CLOSE) // ignore '()'
+         {
+            nested = next;
+            pc     = chunk_skip_to_match(pc);
+            assert(pc != nullptr);
+         }
+         break;
+      }
+
+      default:
+      {
+         break;
+      }
+      } // switch
+
+      if (pc == fpc)
+      {
+         break;
       }
    }
-   if ((prev != nullptr) && !chunk_is_newline(prev))
+
+   start = fpc;
+
+   // prevent loop: ';' -> ')' -> ';'
+   chunk_t *next = chunk_get_next(fpc);
+   if (next != nullptr && next->type == CT_SEMICOLON)
    {
-      LOG_FMT(LSPLIT, "  %s(%d):", __func__, __LINE__);
-      LOG_FMT(LSPLIT, " -- ended on [%s] --\n", get_token_name(prev->type));
-      pc = chunk_get_next(prev);
-      LOG_FMT(LSPLIT, "  %s(%d):", __func__, __LINE__);
-      newline_add_before(pc);
-      LOG_FMT(LSPLIT, "  %s(%d):", __func__, __LINE__);
-      reindent_line(pc, min_col);
-      cpd.changes++;
+      start = next;
    }
 } // split_fcn_params
