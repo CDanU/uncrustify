@@ -442,3 +442,5 @@
 34190 bug_1003.cfg                     cpp/bug_1003.cpp
 
 34191 empty.cfg                        cpp/comment-align-multiline.cpp
+
+34192  code_width-80.cfg               cpp/code_width.cpp
