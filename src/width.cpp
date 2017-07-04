@@ -346,9 +346,8 @@ static bool split_line(chunk_t *start)
     * after the open parenthesis
     */
    else if (  (start->flags & PCF_IN_FCN_DEF)
-           || (start->parent_type == CT_FUNC_PROTO)            // Issue #1169
-           || (  (start->level == (start->brace_level + 1))
-              && (start->flags & PCF_IN_FCN_CALL)))
+           || (start->flags & PCF_IN_FCN_CALL)
+           || start->parent_type == CT_FUNC_PROTO)  // Issue #1169)
    {
       LOG_FMT(LSPLIT, " ** FUNC SPLIT **\n");
 
