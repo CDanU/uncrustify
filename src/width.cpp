@@ -14,7 +14,7 @@
 #include "indent.h"
 #include "newlines.h"
 #include <cstdlib>
-
+#include <limits>
 
 /**
  * abbreviations used:
@@ -226,10 +226,9 @@ static void try_split_here(cw_entry &ent, chunk_t *pc)
       || (chunk_is_newline(prev) && (pc->type != CT_STRING)))
    {
       LOG_FMT(LSPLIT, "%s(%d): Can't split after a newline, orig_line=%zu, return\n",
-              __func__, __LINE__, prev->orig_line);
+              __func__, __LINE__, (prev == nullptr ? std::numeric_limits<short>::max() : prev->orig_line));
       return;
    }
-
    LOG_FMT(LSPLIT, "%s(%d):\n", __func__, __LINE__);
    // Can't split a function without arguments
    if (pc->type == CT_FPAREN_OPEN)
