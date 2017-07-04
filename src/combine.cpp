@@ -4316,11 +4316,17 @@ static void mark_function(chunk_t *pc)
               pc->text(), pc->orig_line, pc->orig_col);
 
       tmp = flag_parens(next, PCF_IN_FCN_CALL, CT_FPAREN_OPEN, CT_FUNC_CALL, false);
-      if (  tmp
-         && (tmp->type == CT_BRACE_OPEN)
-         && (tmp->parent_type != CT_DOUBLE_BRACE))
+      if (tmp != nullptr)
       {
-         set_paren_parent(tmp, pc->type);
+         if (  tmp->type == CT_BRACE_OPEN
+            && tmp->parent_type != CT_DOUBLE_BRACE)
+         {
+            set_paren_parent(tmp, pc->type);
+         }
+         else if (next->type == CT_FPAREN_OPEN && tmp->type == CT_SEMICOLON)
+         {
+            chunk_flags_set(tmp, PCF_IN_FCN_CALL);
+         }
       }
       return;
    }
