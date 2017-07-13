@@ -1,3 +1,11 @@
 /tests/config/** -text
 /tests/input/** -text
 /tests/output/** -text
+
+**/* eol=lf
+**/*.bat text eol=crlf
+./tests/input/ eol=auto
+./tests/output/ eol=auto
+./tests/output/ eol=auto
+./tests/cli/Output/ eol=auto
+./tests/cli/Input/ eol=auto
