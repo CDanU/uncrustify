@@ -1,7 +1,17 @@
 #!/bin/python
+"""
+update_emscripten_bindings.py
+
+updates binding and documention files for Uncrustifys Emscripten interface
+
+:author:  Daniel Chumak
+:license: GPL v2+
+"""
+
+
 from __future__ import print_function  # python >= 2.6, chained 'with' >= 2.7
 
-from os.path import dirname, abspath
+from os.path import dirname, abspath, join as path_join
 from os import fdopen as os_fdopen, remove as os_remove, name as os_name
 from shutil import copy2
 from subprocess import Popen, PIPE
@@ -16,8 +26,8 @@ ROOT_DIR = dirname(dirname(abspath(__file__)))
 
 # ==============================================================================
 
-FILE_BINDINGS = "%s/src/uncrustify_emscripten.cpp" % ROOT_DIR
-FILE_TS = "%s/emscripten/libUncrustify.d.ts" % ROOT_DIR
+FILE_BINDINGS = path_join(ROOT_DIR, "src/uncrustify_emscripten.cpp")
+FILE_TS = path_join(ROOT_DIR, "emscripten/libUncrustify.d.ts")
 
 REGION_START = "region enum bindings"
 REGION_END = "endregion enum bindings"
@@ -27,37 +37,37 @@ ENUMS_INFO = [
     {
         'name': 'uncrustify_options',
         'substitute_name': 'Option',
-        'filepath': '%s/src/options.h' % ROOT_DIR,
+        'filepath': path_join(ROOT_DIR, 'src/options.h'),
         'extra_arg': []
     },
     {
         'name': 'uncrustify_groups',
         'substitute_name': 'Group',
-        'filepath': '%s/src/options.h' % ROOT_DIR,
+        'filepath': path_join(ROOT_DIR, 'src/options.h'),
         'extra_arg': []
     },
     {
         'name': 'argtype_e',
         'substitute_name': 'Argtype',
-        'filepath': '%s/src/options.h' % ROOT_DIR,
+        'filepath': path_join(ROOT_DIR, 'src/options.h'),
         'extra_arg': []
     },
     {
         'name': 'log_sev_t',
         'substitute_name': 'LogSev',
-        'filepath': '%s/src/log_levels.h' % ROOT_DIR,
+        'filepath': path_join(ROOT_DIR, 'src/log_levels.h'),
         'extra_arg': []
     },
     {
         'name': 'c_token_t',
         'substitute_name': 'Token',
-        'filepath': '%s/src/token_enum.h' % ROOT_DIR,
+        'filepath': path_join(ROOT_DIR, 'src/token_enum.h'),
         'extra_arg': []
     },
     {
         'name': 'lang_flag_e',
         'substitute_name': 'LangFlag',
-        'filepath': '%s/src/uncrustify_types.h' % ROOT_DIR,
+        'filepath': path_join(ROOT_DIR, 'src/uncrustify_types.h'),
         'extra_arg': ["-extra-arg=-std=c++1z", "-extra-arg=-DEMSCRIPTEN"]
     },
 ]
@@ -69,6 +79,21 @@ NULL_DEV = "/dev/null" if os_name != "nt" else "nul"
 
 @contextmanager
 def make_raw_temp_file(*args, **kwargs):
+    """
+    Wraps tempfile.mkstemp to use it inside a with statement that auto deletes
+    the file after the with block closes
+
+
+    Parameters
+    ----------------------------------------------------------------------------
+    :param args, kwargs:
+        arguments passed to mkstemp
+
+
+    :return: int, str
+    ----------------------------------------------------------------------------
+        the file descriptor and the file path of the created temporary file
+    """
     fd, tmp_file_name = mkstemp(*args, **kwargs)
     try:
         yield (fd, tmp_file_name)
@@ -78,6 +103,21 @@ def make_raw_temp_file(*args, **kwargs):
 
 @contextmanager
 def open_fd(*args, **kwargs):
+    """
+    Wraps os.fdopen to use it inside a with statement that auto closes the
+    generated file descriptor after the with block closes
+
+
+    Parameters
+    ----------------------------------------------------------------------------
+    :param args, kwargs:
+        arguments passed to os.fdopen
+
+
+    :return: TextIOWrapper
+    ----------------------------------------------------------------------------
+        open file object connected to the file descriptor
+    """
     fp = os_fdopen(*args, **kwargs)
     try:
         yield fp
@@ -87,10 +127,17 @@ def open_fd(*args, **kwargs):
 
 def term_proc(proc, timeout):
     """
-    helper function terminate a process if a timer times out
+    helper function to terminate a process
 
-    :param proc: the process object that is going to be terminated
-    :param timeout: value that will be set to indicate termination
+
+    Parameters
+    ----------------------------------------------------------------------------
+    :param proc: process object
+        the process object that is going to be terminated
+
+    :param timeout: dict
+        a dictionary (used as object reference) to set a flag that indicates
+        that the process is going to be terminated
     """
     timeout["value"] = True
     proc.terminate()
@@ -99,15 +146,26 @@ def term_proc(proc, timeout):
 def proc_output(args, timeout_sec=10):
     """
     grabs output from called program
-    :param args: string array containing program name and program arguments
-    :param timeout_sec: max sec the program can run without being terminated
-    :return: utf8 decoded program output in a string
+
+
+    Parameters
+    ----------------------------------------------------------------------------
+    :param args: list<str>
+        string list containing program name and program arguments
+
+    :param timeout_sec: int
+        max sec the program can run without being terminated
+
+
+    :return: str
+    ----------------------------------------------------------------------------
+        utf8 decoded program output in a string
     """
     proc = Popen(args, stdout=PIPE)
 
     timeout = {"value": False}
+    timer = None
     if timeout_sec is not None:
-        timeout = {"value": False}
         timer = Timer(timeout_sec, term_proc, [proc, timeout])
         timer.start()
 
@@ -128,11 +186,24 @@ def get_enum_lines(enum_info):
     """
     extracts enum values from a file via clang-check
 
-    :param enum_info: dict with:
-                        'name' (name of the enum),
-                        'filepath' (file containing the enum definition),
-                        'extra_arg' (extra arguments passed to clang-check)
-    :return: list containing enum values
+
+    Parameters
+    ----------------------------------------------------------------------------
+    :param enum_info: dict
+        dict with:
+            name: str
+                name of the enum
+
+            filepath: str
+                file containing the enum definition
+
+            extra_arg: list<str>
+                extra arguments passed to clang-check
+
+
+    :return: list<str>
+    ----------------------------------------------------------------------------
+        list containing enum values
     """
     cut_len = len(enum_info['name']) + 2  # "$enumName::"
 
@@ -141,7 +212,7 @@ def get_enum_lines(enum_info):
     proc_args += enum_info['extra_arg']
 
     output = proc_output(proc_args)
-    if output is None or len(output) == 0:
+    if not output:
         print("%s: empty clang-check return" % get_enum_lines.__name__,
               file=stderr)
         return ()
@@ -150,7 +221,7 @@ def get_enum_lines(enum_info):
 
     lines = [m.group(1)[cut_len:] for l in output.splitlines()
              for m in [re.search(reg_obj, l)] if m]
-    if len(lines) == 0:
+    if not lines:
         print("%s: no enum_info names found" % get_enum_lines.__name__,
               file=stderr)
         return ()
@@ -159,18 +230,35 @@ def get_enum_lines(enum_info):
 
 def write_ts(opened_file_obj, enum_info):
     """
-    writes enum values in a specific typescript d.ts file format
+    writes enum values in a typescript d.ts file format
 
-    :param opened_file_obj: opened file file object (with write permissions)
-    :param enum_info: dict with:
-                        'name' (name of the enum),
-                        'substitute_name' (substitute name for the enum),
-                        'filepath' (file containing the enum definition),
-                        'extra_arg' (extra arguments passed to clang-check)
-    :return: False on failure else True
+
+    Parameters
+    ----------------------------------------------------------------------------
+    :param opened_file_obj: file object
+        opened file object (with write permissions)
+
+    :param enum_info: dict
+        dict with:
+            name: str
+                name of the enum
+
+            substitute_name: str
+                substitute name for the enum
+
+            filepath: str
+                file containing the enum definition
+
+            extra_arg: list<str>
+                extra arguments passed to clang-check
+
+
+    :return: bool
+    ----------------------------------------------------------------------------
+        False on failure otherwise True
     """
     lines = get_enum_lines(enum_info)
-    if len(lines) == 0:
+    if not lines:
         return False
 
     opened_file_obj.write('    export interface %s extends EmscriptenEnumType\n'
@@ -184,17 +272,32 @@ def write_ts(opened_file_obj, enum_info):
 
 def write_bindings(opened_file_obj, enum_info):
     """
-    writes enum values in a specific emscripten embind enum bindings format
+    writes enum values in the emscripten embind enum bindings format
 
-    :param opened_file_obj: opened file file object (with write permissions)
-    :param enum_info: dict with:
-                        'name' (name of the enum),
-                        'filepath' (file containing the enum definition),
-                        'extra_arg' (extra arguments passed to clang-check)
-    :return: False on failure else True
+
+    Parameters
+    ----------------------------------------------------------------------------
+    :param opened_file_obj: file object
+        opened file object (with write permissions)
+
+    :param enum_info: dict
+        dict with:
+            name: str
+                name of the enum
+
+            filepath: str
+                file containing the enum definition
+
+            extra_arg: list<str>
+                extra arguments passed to clang-check
+
+
+    :return: bool
+    ----------------------------------------------------------------------------
+        False on failure otherwise True
     """
     lines = get_enum_lines(enum_info)
-    if len(lines) == 0:
+    if not lines:
         return False
 
     opened_file_obj.write('   enum_<%s>(STRINGIFY(%s))'
@@ -211,15 +314,33 @@ def update_file(file_path, writer_func, enums_info):
     reads in a file and replaces old enum value in a region, which is defined by
     region start and end string, with updated ones
 
-    :param file_path: file in which the replacement will be made
-    :param writer_func: name of the function that will be called to write new
-                        content
-    :param enums_info:list of dicts each containing:
-                    'name' (name of the enum),
-                    'substitute_name' (substitute name for the enum),
-                    'filepath' (file containing the enum definition),
-                    'extra_arg' (extra arguments passed to clang-check)
-    :return: False on failure else True
+
+    Parameters
+    ----------------------------------------------------------------------------
+    :param file_path: str
+        file in which the replacement will be made
+
+    :param writer_func: function
+        function that will be called to write new content
+
+    :param enums_info: list<dict>
+        list of dicts each containing:
+            name: str
+                name of the enum
+
+            substitute_name: str
+                substitute name for the enum
+
+            filepath: str
+                file containing the enum definition
+
+            extra_arg: list<str>
+                extra arguments passed to clang-check
+
+
+    :return: bool
+    ----------------------------------------------------------------------------
+        False on failure else True
     """
     in_target_region = False
 
@@ -233,7 +354,7 @@ def update_file(file_path, writer_func, enums_info):
                 match = None if reg_obj is None else re.search(reg_obj, line)
 
                 if match is None and not in_target_region:
-                    fw.write(line)                # write out of region code
+                    fw.write(line)                # lines outside of region code
 
                 elif match is not None and not in_target_region:
                     fw.write(line)                # hit the start region
@@ -269,6 +390,7 @@ def main():
         return 1
 
     return 0
+
 
 if __name__ == "__main__":
     sys_exit(main())
