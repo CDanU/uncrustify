@@ -40,7 +40,7 @@ def enum(**enums):
 
 RESTULTSFLAG = enum(NONE=0, REMOVE=1, KEEP=2)
 ERROR_CODE = enum(NONE=0, FLAGS=200, SANITY0=201, SANITY1=202)
-MODES = ("reduce", "no-default")
+MODES = ("reduce", "no-default", "no-default-safe")
 
 
 @contextmanager
@@ -636,6 +636,27 @@ def get_non_default_options(unc_bin_path, cfg_file_path):
     return lines
 
 
+def parse_config_line(line):
+    if not line:
+        return "", ""      # return on empty string
+
+    pound_pos = line.find('#')
+    if pound_pos != -1:
+        if pound_pos == 0:
+            return "", ""  # comment line -> empty string
+        line = line[:pound_pos]  # cut away the  comment part
+
+    split_pos = line.find('=')
+    if split_pos == -1:
+        split_pos = line.find(' ')
+    if split_pos == -1:
+        return "", ""      # no appropriate separator found
+
+    key = line[:split_pos].strip()
+    value = line[split_pos + 1:].strip()
+    return key, value
+
+
 def parse_config_file(file_obj):
     """
     Reads in a Uncrustify config file
@@ -665,19 +686,9 @@ def parse_config_file(file_obj):
     special_list = []
 
     for line in file_obj:
-        # cut comments
-        pound_pos = line.find('#')
-        if pound_pos != -1:
-            line = line[:pound_pos]
-
-        split_pos = line.find('=')
-        if split_pos == -1:
-            split_pos = line.find(' ')
-        if split_pos == -1:
+        key, value = parse_config_line(line)
+        if not key:
             continue
-
-        key = line[:split_pos].strip()
-        value = line[split_pos + 1:].strip()
 
         if key in special_keys:
             special_list.append((key, value))
@@ -951,6 +962,76 @@ def no_default_mode():
     return ERROR_CODE.NONE
 
 
+def no_default_safe_mode():
+    """
+    the mode removes all unnecessary lines and options with default values
+
+    accesses global var(s): FLAGS, ERROR_CODE
+    """
+
+    # get non default options (losses default options, comments, includes, etc)
+    lines = get_non_default_options(FLAGS.uncrustify_binary_path,
+                                    FLAGS.config_file_path)
+    options_list_nd = parse_config_file(lines)
+    options_list_nd = [x[0] for x in options_list_nd]
+
+    config_lines_ndef = len(options_list_nd)
+    del lines[:]
+
+    # parse options normally (losses comments, etc., but __not__ includes)
+    cfg_lines = []
+    with open(FLAGS.config_file_path, 'r') as f:
+        cfg_lines = f.readlines()
+    config_lines_init = len(cfg_lines)
+
+    options_list = parse_config_file(cfg_lines)
+    options_list = [x[0] for x in options_list]
+
+    # remove non default options from normally parsed options
+    # -> options that need to be removed
+    options_list = [x for x in options_list if x not in options_list_nd]
+    del options_list_nd[:]
+
+    # parse config line by line, write out options that _don't_ need to be
+    # removed and everything else like comments, includes, etc.
+    rem_count = 0
+    if not FLAGS.empty_nochange or (config_lines_ndef != config_lines_init):
+        if not FLAGS.quiet:
+            print("%s" % '# '.ljust(78, '-'))
+
+        for l in cfg_lines:
+            # parse line, check if it is not an option that needs to be removed
+            # except include
+            config_t = parse_config_line(l)
+
+            if config_t[0] == 'include':
+                config_t = ("", "")
+
+            if config_t[0]:
+                if config_t[0] in options_list:
+                    rem_count += 1
+                    continue
+
+                print_config([config_t], target_file_obj=stdout)
+
+                pound_pos = l.find('#')
+                if pound_pos != -1:
+                    print("  %s" % l[pound_pos:], end="")
+                else:
+                    print("")
+
+            else:
+                print(l, end="")
+
+        if not FLAGS.quiet:
+            print("%s" % '# '.ljust(78, '-'))
+            print("# initial config lines: %d,\n"
+                  "# default options and unneeded lines: %d,\n"
+                  % (config_lines_init, rem_count))
+
+    return ERROR_CODE.NONE
+
+
 def main():
     """
     calls the mode that was specified by the -m script argument,
@@ -963,8 +1044,11 @@ def main():
     ----------------------------------------------------------------------------
         return code
     """
+
     if FLAGS.mode == MODES[1]:
         return no_default_mode()
+    if FLAGS.mode == MODES[2]:
+        return no_default_safe_mode()
 
     return reduce_mode()
 
