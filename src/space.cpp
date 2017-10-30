@@ -59,7 +59,7 @@ static argval_t do_space(chunk_t &first, chunk_t &second, int &min_sp, bool comp
  *
  * @return AV_IGNORE, AV_ADD, AV_REMOVE or AV_FORCE
  */
-static argval_t ensure_force_space(chunk_t *first, chunk_t *second, argval_t av);
+static argval_t ensure_force_space(chunk_t &first, chunk_t &second, argval_t av);
 
 //! type that stores two chunks between those no space shall occur
 struct no_space_table_t
@@ -1942,13 +1942,13 @@ static argval_t do_space(chunk_t &first, chunk_t &second, int &min_sp, bool comp
 } // do_space
 
 
-static argval_t ensure_force_space(chunk_t *first, chunk_t *second, argval_t av)
+static argval_t ensure_force_space(chunk_t &first, chunk_t &second, argval_t av)
 {
-   if (first->flags & PCF_FORCE_SPACE)
+   if (first.flags & PCF_FORCE_SPACE)
    {
       int av_int = av;
       LOG_FMT(LSPACE, " <force between '%s' and '%s'>",
-              first->text(), second->text());
+              first.text(), second.text());
       av_int |= AV_ADD;
       return(static_cast<argval_t>(av_int));
    }
@@ -1961,7 +1961,7 @@ static argval_t do_space_ensured(chunk_t *first, chunk_t *second, int &min_sp, b
 {
    assert(first != nullptr);
    assert(second != nullptr);
-   return(ensure_force_space(first, second, do_space(*first, *second, min_sp, complete)));
+   return(ensure_force_space(*first, *second, do_space(*first, *second, min_sp, complete)));
 }
 
 
