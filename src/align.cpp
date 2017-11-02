@@ -1676,7 +1676,7 @@ static chunk_t *scan_ib_line(chunk_t *start, bool first_pass)
               || pc->type == CT_BRACE_CLOSE
               || pc->type == CT_COMMA)
       {
-         size_t token_width = space_col_align(pc, next);
+         size_t token_width = space_col_align(*pc, *next);
 
          // TODO: need to handle missing structure defs? ie NULL vs { ... } ??
 

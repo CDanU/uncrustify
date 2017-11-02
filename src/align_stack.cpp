@@ -177,12 +177,15 @@ void AlignStack::Add(chunk_t *start, size_t seqnum)
    // Tighten down the spacing between ref and start
    if (!cpd.settings[UO_align_keep_extra_space].b)
    {
+      assert(ref != nullptr);
       size_t tmp_col = ref->column;
       tmp = ref;
       while (tmp != start)
       {
          chunk_t *next = chunk_get_next(tmp);
-         tmp_col += space_col_align(tmp, next);
+         assert(next != nullptr);
+
+         tmp_col += space_col_align(*tmp, *next);
          if (next->column != tmp_col)
          {
             align_to_column(next, tmp_col);

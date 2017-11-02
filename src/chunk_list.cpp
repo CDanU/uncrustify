@@ -465,11 +465,14 @@ void chunk_del(chunk_t *pc)
 void chunk_move_after(chunk_t *pc_in, chunk_t *ref)
 {
    LOG_FUNC_ENTRY();
+   assert(pc_in != nullptr);
+   assert(ref != nullptr);
+
    g_cl.Pop(pc_in);
    g_cl.AddAfter(pc_in, ref);
 
    // HACK: Adjust the original column
-   pc_in->column       = ref->column + space_col_align(ref, pc_in);
+   pc_in->column       = ref->column + space_col_align(*ref, *pc_in);
    pc_in->orig_col     = static_cast<UINT32>(pc_in->column);
    pc_in->orig_col_end = pc_in->orig_col + pc_in->len();
 }

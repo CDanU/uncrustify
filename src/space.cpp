@@ -2321,35 +2321,33 @@ size_t space_needed(chunk_t &first, chunk_t &second)
 }
 
 
-size_t space_col_align(chunk_t *first, chunk_t *second)
+size_t space_col_align(chunk_t &first, chunk_t &second)
 {
    LOG_FUNC_ENTRY();
-   assert(first != nullptr);
-   assert(second != nullptr);
 
    LOG_FMT(LSPACE, "%s(%d): orig_line is %zu, orig_col is %zu, [%s/%s] '%s' <==> orig_line is %zu, orig_col is %zu [%s/%s] '%s'",
-           __func__, __LINE__, first->orig_line, first->orig_col,
-           get_token_name(first->type), get_token_name(first->parent_type),
-           first->text(),
-           second->orig_line, second->orig_col,
-           get_token_name(second->type), get_token_name(second->parent_type),
-           second->text());
+           __func__, __LINE__, first.orig_line, first.orig_col,
+           get_token_name(first.type), get_token_name(first.parent_type),
+           first.text(),
+           second.orig_line, second.orig_col,
+           get_token_name(second.type), get_token_name(second.parent_type),
+           second.text());
    log_func_stack_inline(LSPACE);
 
    int      min_sp;
-   argval_t av = do_space_ensured(*first, *second, min_sp);
+   argval_t av = do_space_ensured(first, second, min_sp);
 
    LOG_FMT(LSPACE, "%s(%d): av is %s\n", __func__, __LINE__, argval_to_string(av).c_str());
    size_t coldiff;
-   if (first->nl_count)
+   if (first.nl_count)
    {
-      LOG_FMT(LSPACE, "   nl_count is %zu, orig_col_end is %zu\n", first->nl_count, first->orig_col_end);
-      coldiff = first->orig_col_end - 1;
+      LOG_FMT(LSPACE, "   nl_count is %zu, orig_col_end is %zu\n", first.nl_count, first.orig_col_end);
+      coldiff = first.orig_col_end - 1;
    }
    else
    {
-      LOG_FMT(LSPACE, "   len is %zu\n", first->len());
-      coldiff = first->len();
+      LOG_FMT(LSPACE, "   len is %zu\n", first.len());
+      coldiff = first.len();
    }
 
    switch (av)
@@ -2363,7 +2361,7 @@ size_t space_col_align(chunk_t *first, chunk_t *second)
       break;
 
    case AV_IGNORE:
-      if (second->orig_col > (first->orig_col + first->len()))
+      if (second.orig_col > (first.orig_col + first.len()))
       {
          coldiff++;
       }

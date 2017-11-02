@@ -662,10 +662,13 @@ void newline_del_between(chunk_t *start, chunk_t *end)
    do
    {
       chunk_t *next = chunk_get_next(pc);
+      assert(next != nullptr);
       if (chunk_is_newline(pc))
       {
          chunk_t *prev = chunk_get_prev(pc);
-         if (  (!chunk_is_comment(prev) && !chunk_is_comment(next))
+         if (  (prev != nullptr
+                 && !chunk_is_comment(prev)
+                 && !chunk_is_comment(next))
             || chunk_is_newline(prev)
             || chunk_is_newline(next))
          {
@@ -680,7 +683,7 @@ void newline_del_between(chunk_t *start, chunk_t *end)
                MARK_CHANGE();
                if (prev != nullptr)
                {
-                  align_to_column(next, prev->column + space_col_align(prev, next));
+                  align_to_column(next, prev->column + space_col_align(*prev, *next));
                }
             }
          }

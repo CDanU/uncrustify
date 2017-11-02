@@ -248,7 +248,7 @@ void align_to_column(chunk_t *pc, size_t column)
 
       auto         almod = align_mode_e::SHIFT;
 
-      const size_t min_delta = space_col_align(pc, next);
+      const size_t min_delta = space_col_align(*pc, *next);
       min_col += min_delta;
 
       const auto *prev = pc;
@@ -294,6 +294,8 @@ void align_to_column(chunk_t *pc, size_t column)
 void reindent_line(chunk_t *pc, size_t column)
 {
    LOG_FUNC_ENTRY();
+   assert(pc != nullptr);
+
    LOG_FMT(LINDLINE, "%s(%d): orig_line is %zu, orig_col is %zu, on '%s' [%s/%s] => %zu",
            __func__, __LINE__, pc->orig_line, pc->column, pc->text(),
            get_token_name(pc->type), get_token_name(pc->parent_type),
@@ -345,7 +347,7 @@ void reindent_line(chunk_t *pc, size_t column)
          min_col   = 0;
          col_delta = 0;
       }
-      min_col += space_col_align(pc, next);
+      min_col += space_col_align(*pc, *next);
       pc       = next;
 
       bool is_comment = chunk_is_comment(pc);
