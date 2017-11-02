@@ -2299,13 +2299,13 @@ void space_text_balance_nested_parens(void)
 } // space_text_balance_nested_parens
 
 
-size_t space_needed(chunk_t *first, chunk_t *second)
+size_t space_needed(chunk_t &first, chunk_t &second)
 {
    LOG_FUNC_ENTRY();
    LOG_FMT(LSPACE, "%s(%d)\n", __func__, __LINE__);
 
    int min_sp;
-   switch (do_space_ensured(first, second, min_sp))
+   switch (do_space_ensured(&first, &second, min_sp))
    {
    case AV_ADD:
    case AV_FORCE:
@@ -2316,7 +2316,7 @@ size_t space_needed(chunk_t *first, chunk_t *second)
 
    case AV_IGNORE:
    default:
-      return(second->orig_col > (first->orig_col + first->len()));
+      return(second.orig_col > (first.orig_col + first.len()));
    }
 }
 

@@ -23,7 +23,7 @@ void space_text_balance_nested_parens(void);
 
 
 //! Determines if a space is required between two chunks
-size_t space_needed(chunk_t *first, chunk_t *second);
+size_t space_needed(chunk_t &first, chunk_t &second);
 
 
 /**
