@@ -39,7 +39,7 @@ size_t space_needed(chunk_t &first, chunk_t &second);
 size_t space_col_align(chunk_t *first, chunk_t *second);
 
 
-void space_add_after(chunk_t *pc, size_t count);
+void space_add_after(chunk_t &pc, size_t count);
 
 
 #endif /* SPACE_H_INCLUDED */

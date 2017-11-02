@@ -2255,7 +2255,7 @@ void space_text_balance_nested_parens(void)
       if (chunk_is_str(first, "(", 1) && chunk_is_str(next, "(", 1))
       {
          // insert a space between them
-         space_add_after(first, 1);
+         space_add_after(*first, 1);
 
          /*
           * find the closing paren that matches the 'first' open paren and force
@@ -2267,7 +2267,7 @@ void space_text_balance_nested_parens(void)
          {                                              // that matches the
             if (cur->level == first->level)             // first open parenthesis
             {
-               space_add_after(prev, 1);                // and force a space before it
+               space_add_after(*prev, 1);                // and force a space before it
                break;
             }
             prev = cur;
@@ -2276,7 +2276,7 @@ void space_text_balance_nested_parens(void)
       else if (chunk_is_str(first, ")", 1) && chunk_is_str(next, ")", 1))
       {
          // insert a space between the two closing parens
-         space_add_after(first, 1);
+         space_add_after(*first, 1);
 
          // issue # 752
          // the next lines are never used in the tests.
@@ -2375,7 +2375,7 @@ size_t space_col_align(chunk_t *first, chunk_t *second)
 } // space_col_align
 
 
-void space_add_after(chunk_t *pc, size_t count)
+void space_add_after(chunk_t &pc, size_t count)
 {
    LOG_FUNC_ENTRY();
    //if (count <= 0)
@@ -2383,7 +2383,7 @@ void space_add_after(chunk_t *pc, size_t count)
    //   return;
    //}
 
-   chunk_t *next = chunk_get_next(pc);
+   chunk_t *next = chunk_get_next(&pc);
 
    // don't add at the end of the file or before a newline
    if (next == nullptr || chunk_is_newline(next))
@@ -2412,15 +2412,15 @@ void space_add_after(chunk_t *pc, size_t count)
 
    chunk_t sp;
 
-   sp.flags = pc->flags & PCF_COPY_FLAGS;
+   sp.flags = pc.flags & PCF_COPY_FLAGS;
    sp.type  = CT_SPACE;
    sp.str   = "                ";       // 16 spaces
    sp.str.resize(count);
-   sp.level       = pc->level;
-   sp.brace_level = pc->brace_level;
-   sp.pp_level    = pc->pp_level;
-   sp.column      = pc->column + pc->len();
-   sp.orig_line   = pc->orig_line;
+   sp.level       = pc.level;
+   sp.brace_level = pc.brace_level;
+   sp.pp_level    = pc.pp_level;
+   sp.column      = pc.column + pc.len();
+   sp.orig_line   = pc.orig_line;
 
-   chunk_add_after(&sp, pc);
+   chunk_add_after(&sp, &pc);
 } // space_add_after
