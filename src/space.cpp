@@ -1957,11 +1957,9 @@ static argval_t ensure_force_space(chunk_t &first, chunk_t &second, argval_t av)
 }
 
 
-static argval_t do_space_ensured(chunk_t *first, chunk_t *second, int &min_sp, bool complete = true)
+static argval_t do_space_ensured(chunk_t &first, chunk_t &second, int &min_sp, bool complete = true)
 {
-   assert(first != nullptr);
-   assert(second != nullptr);
-   return(ensure_force_space(*first, *second, do_space(*first, *second, min_sp, complete)));
+   return(ensure_force_space(first, second, do_space(first, second, min_sp, complete)));
 }
 
 
@@ -2140,7 +2138,9 @@ void space_text(void)
          int min_sp;
          LOG_FMT(LSPACE, "%s(%d): orig_line is %zu, orig_col is %zu, pc-text() '%s', type is %s\n",
                  __func__, __LINE__, pc->orig_line, pc->orig_col, pc->text(), get_token_name(pc->type));
-         argval_t av = do_space_ensured(pc, next, min_sp, false);
+         assert(pc != nullptr);
+         assert(next != nullptr);
+         argval_t av = do_space_ensured(*pc, *next, min_sp, false);
          min_sp = max(1, min_sp);
          switch (av)
          {
@@ -2305,7 +2305,7 @@ size_t space_needed(chunk_t &first, chunk_t &second)
    LOG_FMT(LSPACE, "%s(%d)\n", __func__, __LINE__);
 
    int min_sp;
-   switch (do_space_ensured(&first, &second, min_sp))
+   switch (do_space_ensured(first, second, min_sp))
    {
    case AV_ADD:
    case AV_FORCE:
@@ -2324,6 +2324,8 @@ size_t space_needed(chunk_t &first, chunk_t &second)
 size_t space_col_align(chunk_t *first, chunk_t *second)
 {
    LOG_FUNC_ENTRY();
+   assert(first != nullptr);
+   assert(second != nullptr);
 
    LOG_FMT(LSPACE, "%s(%d): orig_line is %zu, orig_col is %zu, [%s/%s] '%s' <==> orig_line is %zu, orig_col is %zu [%s/%s] '%s'",
            __func__, __LINE__, first->orig_line, first->orig_col,
@@ -2335,7 +2337,7 @@ size_t space_col_align(chunk_t *first, chunk_t *second)
    log_func_stack_inline(LSPACE);
 
    int      min_sp;
-   argval_t av = do_space_ensured(first, second, min_sp);
+   argval_t av = do_space_ensured(*first, *second, min_sp);
 
    LOG_FMT(LSPACE, "%s(%d): av is %s\n", __func__, __LINE__, argval_to_string(av).c_str());
    size_t coldiff;
