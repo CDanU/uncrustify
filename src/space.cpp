@@ -35,7 +35,7 @@
 using namespace std;
 
 
-static void log_rule2(size_t line, const char *rule, chunk_t &first, chunk_t &second, bool complete);
+static void log_rule2(size_t line, const char *rule, const chunk_t &first, const chunk_t &second, bool complete);
 
 
 /**
@@ -47,7 +47,7 @@ static void log_rule2(size_t line, const char *rule, chunk_t &first, chunk_t &se
  *
  * @return AV_IGNORE, AV_ADD, AV_REMOVE or AV_FORCE
  */
-static argval_t do_space(chunk_t &first, chunk_t &second, int &min_sp, bool complete);
+static argval_t do_space(const chunk_t &first, const chunk_t &second, int &min_sp, bool complete);
 
 /**
  * Ensure to force the space between the \a first and the \a second chunks
@@ -59,7 +59,7 @@ static argval_t do_space(chunk_t &first, chunk_t &second, int &min_sp, bool comp
  *
  * @return AV_IGNORE, AV_ADD, AV_REMOVE or AV_FORCE
  */
-static argval_t ensure_force_space(chunk_t &first, chunk_t &second, argval_t av);
+static argval_t ensure_force_space(const chunk_t &first, const chunk_t &second, argval_t av);
 
 //! type that stores two chunks between those no space shall occur
 struct no_space_table_t
@@ -114,13 +114,13 @@ const no_space_table_t no_space_table[] =
    { CT_TYPENAME,       CT_TYPE          },
 };
 
-#define log_rule(rule)                                               \
-   do { if (log_sev_on(LSPACE)) {                                    \
+#define log_rule(rule)                                             \
+   do { if (log_sev_on(LSPACE)) {                                  \
            log_rule2(__LINE__, (rule), first, second, complete); } \
    } while (0)
 
 
-static void log_rule2(size_t line, const char *rule, chunk_t &first, chunk_t &second, bool complete)
+static void log_rule2(size_t line, const char *rule, const chunk_t &first, const chunk_t &second, bool complete)
 {
    LOG_FUNC_ENTRY();
    if (second.type != CT_NEWLINE)
@@ -141,10 +141,9 @@ static void log_rule2(size_t line, const char *rule, chunk_t &first, chunk_t &se
  * this function is called for every chunk in the input file.
  * Thus it is important to keep this function efficient
  */
-static argval_t do_space(chunk_t &first, chunk_t &second, int &min_sp, bool complete = true)
+static argval_t do_space(const chunk_t &first, const chunk_t &second, int &min_sp, bool complete = true)
 {
    LOG_FUNC_ENTRY();
-
    LOG_FMT(LSPACE, "%s(%d): orig_line is %zu, orig_col is %zu, first.text() '%s', type is %s\n",
            __func__, __LINE__, first.orig_line, first.orig_col, first.text(), get_token_name(first.type));
 
@@ -368,7 +367,6 @@ static argval_t do_space(chunk_t &first, chunk_t &second, int &min_sp, bool comp
    {
       if (cpd.settings[UO_sp_endif_cmt].a != AV_IGNORE)
       {
-         set_chunk_type(&second, CT_COMMENT_ENDIF);
          log_rule("sp_endif_cmt");
          return(cpd.settings[UO_sp_endif_cmt].a);
       }
@@ -1613,11 +1611,11 @@ static argval_t do_space(chunk_t &first, chunk_t &second, int &min_sp, bool comp
       if (cpd.settings[UO_sp_before_ptr_star_func].a != AV_IGNORE)
       {
          // Find the next non-'*' chunk
-         chunk_t *next = &second;
-         do
+         chunk_t *next = chunk_get_next(&second);
+         while (next != nullptr && next->type == CT_PTR_TYPE)
          {
             next = chunk_get_next(next);
-         } while (next != nullptr && next->type == CT_PTR_TYPE);
+         }
 
          if (  next != nullptr
             && (next->type == CT_FUNC_DEF || next->type == CT_FUNC_PROTO))
@@ -1942,7 +1940,7 @@ static argval_t do_space(chunk_t &first, chunk_t &second, int &min_sp, bool comp
 } // do_space
 
 
-static argval_t ensure_force_space(chunk_t &first, chunk_t &second, argval_t av)
+static argval_t ensure_force_space(const chunk_t &first, const chunk_t &second, argval_t av)
 {
    if (first.flags & PCF_FORCE_SPACE)
    {
@@ -1957,7 +1955,7 @@ static argval_t ensure_force_space(chunk_t &first, chunk_t &second, argval_t av)
 }
 
 
-static argval_t do_space_ensured(chunk_t &first, chunk_t &second, int &min_sp, bool complete = true)
+static argval_t do_space_ensured(const chunk_t &first, const chunk_t &second, int &min_sp, bool complete = true)
 {
    return(ensure_force_space(first, second, do_space(first, second, min_sp, complete)));
 }
@@ -2267,7 +2265,7 @@ void space_text_balance_nested_parens(void)
          {                                              // that matches the
             if (cur->level == first->level)             // first open parenthesis
             {
-               space_add_after(*prev, 1);                // and force a space before it
+               space_add_after(*prev, 1);               // and force a space before it
                break;
             }
             prev = cur;
