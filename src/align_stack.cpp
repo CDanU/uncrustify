@@ -154,16 +154,16 @@ void AlignStack::Add(chunk_t *start, size_t seqnum)
    if (m_star_style != SS_IGNORE)
    {
       // back up to the first '*' or '^' preceding the token
-      prev = chunk_get_prev(ali);
-      while (chunk_is_star(prev) || chunk_is_msref(prev))
+      chunk_t *tmp_prev = chunk_get_prev(ali);
+      while (chunk_is_star(tmp_prev) || chunk_is_msref(tmp_prev))
       {
-         ali  = prev;
-         prev = chunk_get_prev(ali);
+         ali      = tmp_prev;
+         tmp_prev = chunk_get_prev(ali);
       }
-      if (chunk_is_token(prev, CT_TPAREN_OPEN))
+      if (chunk_is_token(tmp_prev, CT_TPAREN_OPEN))
       {
-         ali  = prev;
-         prev = chunk_get_prev(ali);
+         ali      = tmp_prev;
+         tmp_prev = chunk_get_prev(ali);
          // this is correct, even Coverity says:
          // CID 76021 (#1 of 1): Unused value (UNUSED_VALUE)returned_pointer: Assigning value from
          // chunk_get_prev(ali, nav_e::ALL) to prev here, but that stored value is overwritten before it can be used.
@@ -172,20 +172,20 @@ void AlignStack::Add(chunk_t *start, size_t seqnum)
    if (m_amp_style != SS_IGNORE)
    {
       // back up to the first '&' preceding the token
-      prev = chunk_get_prev(ali);
-      while (chunk_is_addr(prev))
+      chunk_t *tmp_prev = chunk_get_prev(ali);
+      while (chunk_is_addr(tmp_prev))
       {
-         ali  = prev;
-         prev = chunk_get_prev(ali);
+         ali      = tmp_prev;
+         tmp_prev = chunk_get_prev(ali);
       }
    }
 
-   chunk_t *tmp;
+
    // Tighten down the spacing between ref and start
    if (!cpd.settings[UO_align_keep_extra_space].b)
    {
-      size_t tmp_col = ref->column;
-      tmp = ref;
+      size_t  tmp_col = ref->column;
+      chunk_t *tmp    = ref;
       while (tmp != start)
       {
          chunk_t *next = chunk_get_next(tmp);
@@ -218,7 +218,8 @@ void AlignStack::Add(chunk_t *start, size_t seqnum)
       {
          gap = ali->column - (ref->column + ref->len());
       }
-      tmp = ali;
+
+      chunk_t *tmp = ali;
       if (chunk_is_token(tmp, CT_TPAREN_OPEN))
       {
          tmp = chunk_get_next(tmp);
