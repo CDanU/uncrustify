@@ -58,7 +58,7 @@ static chunk_t *insert_vbrace(chunk_t *pc, bool after, parse_frame_t *frm);
 #define insert_vbrace_close_after(pc, frm)    insert_vbrace(pc, true, frm)
 #define insert_vbrace_open_before(pc, frm)    insert_vbrace(pc, false, frm)
 
-static void parse_cleanup(parse_frame_t *frm, chunk_t *pc);
+static void parse_cleanup(parse_frame_t &frm, chunk_t &pc);
 
 
 /**
@@ -196,6 +196,10 @@ void brace_cleanup(void)
             && pc->type == CT_NEWLINE)
          {
             pc = pawn_check_vsemicolon(pc);
+            if (pc == nullptr)
+            {
+               return;
+            }
          }
       }
 
@@ -214,7 +218,7 @@ void brace_cleanup(void)
          && (cpd.in_preproc == CT_PP_DEFINE || cpd.in_preproc == CT_NONE))
       {
          cpd.consumed = false;
-         parse_cleanup(&frm, pc);
+         parse_cleanup(frm, *pc);
          print_stack(LBCSAFTER, (pc->type == CT_VBRACE_CLOSE) ? "Virt-}" : pc->str.c_str(), &frm, pc);
       }
       pc = chunk_get_next(pc);
@@ -325,63 +329,57 @@ static void push_fmr_pse(parse_frame_t *frm, chunk_t *pc,
  * When a #define is entered, the current frame is pushed and cleared.
  * When a #define is exited, the frame is popped.
  */
-static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
+static void parse_cleanup(parse_frame_t &frm, chunk_t &pc)
 {
    LOG_FUNC_ENTRY();
-   if(frm == nullptr || pc == nullptr)
-   {
-       return;
-   }
-
-
    LOG_FMT(LTOK, "%s(%d): orig_line is %zu, type is %s, tos is %zu, TOS.type is %s, TOS.stage is %u\n",
-           __func__, __LINE__, pc->orig_line, get_token_name(pc->type),
-           frm->pse_tos, get_token_name(frm->pse[frm->pse_tos].type),
-           (unsigned int)frm->pse[frm->pse_tos].stage);
+           __func__, __LINE__, pc.orig_line, get_token_name(pc.type),
+           frm.pse_tos, get_token_name(frm.pse[frm.pse_tos].type),
+           (unsigned int)frm.pse[frm.pse_tos].stage);
 
    // Mark statement starts
-   if (  (frm->stmt_count == 0 || frm->expr_count == 0)
-      && !chunk_is_semicolon(pc)
-      && pc->type != CT_BRACE_CLOSE
-      && pc->type != CT_VBRACE_CLOSE
-      && !chunk_is_str(pc, ")", 1)
-      && !chunk_is_str(pc, "]", 1))
+   if (  (frm.stmt_count == 0 || frm.expr_count == 0)
+      && !chunk_is_semicolon(&pc)
+      && pc.type != CT_BRACE_CLOSE
+      && pc.type != CT_VBRACE_CLOSE
+      && !chunk_is_str(&pc, ")", 1)
+      && !chunk_is_str(&pc, "]", 1))
    {
-      chunk_flags_set(pc, PCF_EXPR_START | ((frm->stmt_count == 0) ? PCF_STMT_START : 0));
+      chunk_flags_set(&pc, PCF_EXPR_START | ((frm.stmt_count == 0) ? PCF_STMT_START : 0));
       LOG_FMT(LSTMT, "%s(%d): orig_line is %zu, 1.marked '%s' as %s, start stmt_count is %d, expr_count is %d\n",
-              __func__, __LINE__, pc->orig_line, pc->text(), (pc->flags & PCF_STMT_START) ? "stmt" : "expr",
-              frm->stmt_count, frm->expr_count);
+              __func__, __LINE__, pc.orig_line, pc.text(), (pc.flags & PCF_STMT_START) ? "stmt" : "expr",
+              frm.stmt_count, frm.expr_count);
    }
-   frm->stmt_count++;
-   frm->expr_count++;
+   frm.stmt_count++;
+   frm.expr_count++;
 
-   if (frm->sparen_count > 0)
+   if (frm.sparen_count > 0)
    {
-      chunk_flags_set(pc, PCF_IN_SPAREN);
+      chunk_flags_set(&pc, PCF_IN_SPAREN);
 
       // Mark everything in the for statement
-      for (int tmp = frm->pse_tos - 1; tmp >= 0; tmp--)
+      for (int tmp = frm.pse_tos - 1; tmp >= 0; tmp--)
       {
-         if (frm->pse[tmp].type == CT_FOR)
+         if (frm.pse[tmp].type == CT_FOR)
          {
-            chunk_flags_set(pc, PCF_IN_FOR);
+            chunk_flags_set(&pc, PCF_IN_FOR);
             break;
          }
       }
 
       // Mark the parent on semicolons in for() statements
-      if (  pc->type == CT_SEMICOLON
-         && frm->pse_tos > 1
-         && (frm->pse[frm->pse_tos - 1].type == CT_FOR))
+      if (  pc.type == CT_SEMICOLON
+         && frm.pse_tos > 1
+         && (frm.pse[frm.pse_tos - 1].type == CT_FOR))
       {
-         set_chunk_parent(pc, CT_FOR);
+         set_chunk_parent(&pc, CT_FOR);
       }
    }
 
    // Check the progression of complex statements
-   if (frm->pse[frm->pse_tos].stage != brace_stage_e::NONE)
+   if (frm.pse[frm.pse_tos].stage != brace_stage_e::NONE)
    {
-      if (check_complex_statements(*frm, *pc))
+      if (check_complex_statements(frm, pc))
       {
          return;
       }
@@ -393,54 +391,54 @@ static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
     * The semicolon isn't handled at all.
     * TODO: may need to float VBRACE past comments until newline?
     */
-   if (frm->pse[frm->pse_tos].type == CT_VBRACE_OPEN)
+   if (frm.pse[frm.pse_tos].type == CT_VBRACE_OPEN)
    {
-      if (chunk_is_semicolon(pc))
+      if (chunk_is_semicolon(&pc))
       {
          cpd.consumed = true;
-         close_statement(frm, pc);
+         close_statement(&frm, &pc);
       }
       else if (cpd.lang_flags & LANG_PAWN)
       {
-         if (pc->type == CT_BRACE_CLOSE)
+         if (pc.type == CT_BRACE_CLOSE)
          {
-            close_statement(frm, pc);
+            close_statement(&frm, &pc);
          }
       }
    }
 
    // Handle close parenthesis, vbrace, brace, and square
-   if (  pc->type == CT_PAREN_CLOSE
-      || pc->type == CT_BRACE_CLOSE
-      || pc->type == CT_VBRACE_CLOSE
-      || pc->type == CT_ANGLE_CLOSE
-      || pc->type == CT_MACRO_CLOSE
-      || pc->type == CT_SQUARE_CLOSE)
+   if (  pc.type == CT_PAREN_CLOSE
+      || pc.type == CT_BRACE_CLOSE
+      || pc.type == CT_VBRACE_CLOSE
+      || pc.type == CT_ANGLE_CLOSE
+      || pc.type == CT_MACRO_CLOSE
+      || pc.type == CT_SQUARE_CLOSE)
    {
       // Change CT_PAREN_CLOSE into CT_SPAREN_CLOSE or CT_FPAREN_CLOSE
-      if (  pc->type == CT_PAREN_CLOSE
-         && (  (frm->pse[frm->pse_tos].type == CT_FPAREN_OPEN)
-            || (frm->pse[frm->pse_tos].type == CT_SPAREN_OPEN)))
+      if (  pc.type == CT_PAREN_CLOSE
+         && (  (frm.pse[frm.pse_tos].type == CT_FPAREN_OPEN)
+            || (frm.pse[frm.pse_tos].type == CT_SPAREN_OPEN)))
       {
-         set_chunk_type(pc, (c_token_t)(frm->pse[frm->pse_tos].type + 1));
-         if (pc->type == CT_SPAREN_CLOSE)
+         set_chunk_type(&pc, (c_token_t)(frm.pse[frm.pse_tos].type + 1));
+         if (pc.type == CT_SPAREN_CLOSE)
          {
-            frm->sparen_count--;
-            chunk_flags_clr(pc, PCF_IN_SPAREN);
+            frm.sparen_count--;
+            chunk_flags_clr(&pc, PCF_IN_SPAREN);
          }
       }
 
       // Make sure the open / close match
-      if (pc->type != (frm->pse[frm->pse_tos].type + 1))
+      if (pc.type != (frm.pse[frm.pse_tos].type + 1))
       {
-         if (  (frm->pse[frm->pse_tos].type != CT_NONE)
-            && (frm->pse[frm->pse_tos].type != CT_PP_DEFINE))
+         if (  (frm.pse[frm.pse_tos].type != CT_NONE)
+            && (frm.pse[frm.pse_tos].type != CT_PP_DEFINE))
          {
             LOG_FMT(LWARN, "%s(%d): %s, orig_line is %zu, Error: Unexpected '%s' for '%s', which was on line %zu\n",
-                    __func__, __LINE__, cpd.filename, pc->orig_line, pc->text(),
-                    get_token_name(frm->pse[frm->pse_tos].pc->type),
-                    frm->pse[frm->pse_tos].pc->orig_line);
-            print_stack(LBCSPOP, "=Error  ", frm, pc);
+                    __func__, __LINE__, cpd.filename, pc.orig_line, pc.text(),
+                    get_token_name(frm.pse[frm.pse_tos].pc->type),
+                    frm.pse[frm.pse_tos].pc->orig_line);
+            print_stack(LBCSPOP, "=Error  ", &frm, &pc);
             cpd.error_count++;
          }
       }
@@ -449,25 +447,25 @@ static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
          cpd.consumed = true;
 
          // Copy the parent, update the parenthesis/brace levels
-         set_chunk_parent(pc, frm->pse[frm->pse_tos].parent);
-         frm->level--;
-         if (  pc->type == CT_BRACE_CLOSE
-            || pc->type == CT_VBRACE_CLOSE
-            || pc->type == CT_MACRO_CLOSE)
+         set_chunk_parent(&pc, frm.pse[frm.pse_tos].parent);
+         frm.level--;
+         if (  pc.type == CT_BRACE_CLOSE
+            || pc.type == CT_VBRACE_CLOSE
+            || pc.type == CT_MACRO_CLOSE)
          {
-            frm->brace_level--;
+            frm.brace_level--;
          }
-         pc->level       = frm->level;
-         pc->brace_level = frm->brace_level;
+         pc.level       = frm.level;
+         pc.brace_level = frm.brace_level;
 
          // Pop the entry
-         frm->pse_tos--;
-         print_stack(LBCSPOP, "-Close  ", frm, pc);
+         frm.pse_tos--;
+         print_stack(LBCSPOP, "-Close  ", &frm, &pc);
 
          // See if we are in a complex statement
-         if (frm->pse[frm->pse_tos].stage != brace_stage_e::NONE)
+         if (frm.pse[frm.pse_tos].stage != brace_stage_e::NONE)
          {
-            handle_complex_close(frm, pc);
+            handle_complex_close(&frm, &pc);
          }
       }
    }
@@ -477,10 +475,8 @@ static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
     * sparen, so we need to check cpd.consumed to see if the close sparen was
     * aleady handled.
     */
-   if (frm->pse[frm->pse_tos].stage == brace_stage_e::WOD_SEMI)
+   if (frm.pse[frm.pse_tos].stage == brace_stage_e::WOD_SEMI)
    {
-      chunk_t *tmp = pc;
-
       if (cpd.consumed)
       {
          /*
@@ -490,63 +486,63 @@ static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
           */
          if (cpd.lang_flags & LANG_PAWN)
          {
-            tmp = chunk_get_next_ncnl(pc);
+            chunk_t *tmp = chunk_get_next_ncnl(&pc);
 
             if (tmp->type != CT_SEMICOLON && tmp->type != CT_VSEMICOLON)
             {
-               pawn_add_vsemi_after(pc);
+               pawn_add_vsemi_after(&pc);
             }
          }
       }
       else
       {
          // Complain if this ISN'T a semicolon, but close out WHILE_OF_DO anyway
-         if (pc->type == CT_SEMICOLON || pc->type == CT_VSEMICOLON)
+         if (pc.type == CT_SEMICOLON || pc.type == CT_VSEMICOLON)
          {
             cpd.consumed = true;
-            set_chunk_parent(pc, CT_WHILE_OF_DO);
+            set_chunk_parent(&pc, CT_WHILE_OF_DO);
          }
          else
          {
             LOG_FMT(LWARN, "%s: %s(%d): %zu: Error: Expected a semicolon for WHILE_OF_DO, but got '%s'\n",
-                    cpd.filename, __func__, __LINE__, pc->orig_line, get_token_name(pc->type));
+                    cpd.filename, __func__, __LINE__, pc.orig_line, get_token_name(pc.type));
             cpd.error_count++;
          }
-         handle_complex_close(frm, pc);
+         handle_complex_close(&frm, &pc);
       }
    }
 
    // Get the parent type for brace and parenthesis open
-   c_token_t parent = pc->parent_type;
-   if (  pc->type == CT_PAREN_OPEN
-      || pc->type == CT_FPAREN_OPEN
-      || pc->type == CT_SPAREN_OPEN
-      || pc->type == CT_BRACE_OPEN)
+   c_token_t parent = pc.parent_type;
+   if (  pc.type == CT_PAREN_OPEN
+      || pc.type == CT_FPAREN_OPEN
+      || pc.type == CT_SPAREN_OPEN
+      || pc.type == CT_BRACE_OPEN)
    {
-      chunk_t *prev = chunk_get_prev_ncnl(pc);
+      chunk_t *prev = chunk_get_prev_ncnl(&pc);
       if (prev != nullptr)
       {
-         if (  pc->type == CT_PAREN_OPEN
-            || pc->type == CT_FPAREN_OPEN
-            || pc->type == CT_SPAREN_OPEN)
+         if (  pc.type == CT_PAREN_OPEN
+            || pc.type == CT_FPAREN_OPEN
+            || pc.type == CT_SPAREN_OPEN)
          {
             // Set the parent for parenthesis and change parenthesis type
-            if (frm->pse[frm->pse_tos].stage != brace_stage_e::NONE)
+            if (frm.pse[frm.pse_tos].stage != brace_stage_e::NONE)
             {
-               set_chunk_type(pc, CT_SPAREN_OPEN);
-               parent = frm->pse[frm->pse_tos].type;
-               frm->sparen_count++;
+               set_chunk_type(&pc, CT_SPAREN_OPEN);
+               parent = frm.pse[frm.pse_tos].type;
+               frm.sparen_count++;
             }
             else if (prev->type == CT_FUNCTION)
             {
-               set_chunk_type(pc, CT_FPAREN_OPEN);
+               set_chunk_type(&pc, CT_FPAREN_OPEN);
                parent = CT_FUNCTION;
             }
             // NS_ENUM and NS_OPTIONS are followed by a (type, name) pair
             else if (prev->type == CT_ENUM && (cpd.lang_flags & LANG_OC))
             {
                // Treat both as CT_ENUM since the syntax is identical
-               set_chunk_type(pc, CT_FPAREN_OPEN);
+               set_chunk_type(&pc, CT_FPAREN_OPEN);
                parent = CT_ENUM;
             }
             else
@@ -557,9 +553,9 @@ static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
          else  // must be CT_BRACE_OPEN
          {
             // Set the parent for open braces
-            if (frm->pse[frm->pse_tos].stage != brace_stage_e::NONE)
+            if (frm.pse[frm.pse_tos].stage != brace_stage_e::NONE)
             {
-               parent = frm->pse[frm->pse_tos].type;
+               parent = frm.pse[frm.pse_tos].type;
             }
             else if (prev->type == CT_ASSIGN && (prev->str[0] == '='))
             {
@@ -588,25 +584,25 @@ static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
     * Adjust the level for opens & create a stack entry
     * Note that CT_VBRACE_OPEN has already been handled.
     */
-   if (  pc->type == CT_BRACE_OPEN
-      || pc->type == CT_PAREN_OPEN
-      || pc->type == CT_FPAREN_OPEN
-      || pc->type == CT_SPAREN_OPEN
-      || pc->type == CT_ANGLE_OPEN
-      || pc->type == CT_MACRO_OPEN
-      || pc->type == CT_SQUARE_OPEN)
+   if (  pc.type == CT_BRACE_OPEN
+      || pc.type == CT_PAREN_OPEN
+      || pc.type == CT_FPAREN_OPEN
+      || pc.type == CT_SPAREN_OPEN
+      || pc.type == CT_ANGLE_OPEN
+      || pc.type == CT_MACRO_OPEN
+      || pc.type == CT_SQUARE_OPEN)
    {
-      frm->level++;
-      if (pc->type == CT_BRACE_OPEN || pc->type == CT_MACRO_OPEN)
+      frm.level++;
+      if (pc.type == CT_BRACE_OPEN || pc.type == CT_MACRO_OPEN)
       {
-         frm->brace_level++;
+         frm.brace_level++;
       }
-      push_fmr_pse(frm, pc, brace_stage_e::NONE, "+Open   ");
-      frm->pse[frm->pse_tos].parent = parent;
-      set_chunk_parent(pc, parent);
+      push_fmr_pse(&frm, &pc, brace_stage_e::NONE, "+Open   ");
+      frm.pse[frm.pse_tos].parent = parent;
+      set_chunk_parent(&pc, parent);
    }
 
-   pattern_class_e patcls = get_token_pattern_class(pc->type);
+   pattern_class_e patcls = get_token_pattern_class(pc.type);
 
    /*
     * Create a stack entry for complex statements:
@@ -615,28 +611,28 @@ static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
     */
    if (patcls == pattern_class_e::BRACED)
    {
-      push_fmr_pse(frm, pc,
-                   (pc->type == CT_DO) ? brace_stage_e::BRACE_DO : brace_stage_e::BRACE2,
+      push_fmr_pse(&frm, &pc,
+                   (pc.type == CT_DO) ? brace_stage_e::BRACE_DO : brace_stage_e::BRACE2,
                    "+ComplexBraced");
    }
    else if (patcls == pattern_class_e::PBRACED)
    {
       brace_stage_e bs = brace_stage_e::PAREN1;
 
-      if (pc->type == CT_WHILE && maybe_while_of_do(*pc))
+      if (pc.type == CT_WHILE && maybe_while_of_do(pc))
       {
-         set_chunk_type(pc, CT_WHILE_OF_DO);
+         set_chunk_type(&pc, CT_WHILE_OF_DO);
          bs = brace_stage_e::WOD_PAREN;
       }
-      push_fmr_pse(frm, pc, bs, "+ComplexParenBraced");
+      push_fmr_pse(&frm, &pc, bs, "+ComplexParenBraced");
    }
    else if (patcls == pattern_class_e::OPBRACED)
    {
-      push_fmr_pse(frm, pc, brace_stage_e::OP_PAREN1, "+ComplexOpParenBraced");
+      push_fmr_pse(&frm, &pc, brace_stage_e::OP_PAREN1, "+ComplexOpParenBraced");
    }
    else if (patcls == pattern_class_e::ELSE)
    {
-      push_fmr_pse(frm, pc, brace_stage_e::ELSEIF, "+ComplexElse");
+      push_fmr_pse(&frm, &pc, brace_stage_e::ELSEIF, "+ComplexElse");
    }
 
    /*
@@ -645,75 +641,75 @@ static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
     *  - after ';', but not if the paren stack top is a paren
     *  - after '(' that has a parent type of CT_FOR
     */
-   if (  pc->type == CT_SQUARE_OPEN
-      || (pc->type == CT_BRACE_OPEN && pc->parent_type != CT_ASSIGN)
-      || pc->type == CT_BRACE_CLOSE
-      || pc->type == CT_VBRACE_CLOSE
-      || (pc->type == CT_SPAREN_OPEN && pc->parent_type == CT_FOR)
-      || pc->type == CT_COLON
-      || pc->type == CT_OC_END
-      || (  chunk_is_semicolon(pc)
-         && frm->pse[frm->pse_tos].type != CT_PAREN_OPEN
-         && frm->pse[frm->pse_tos].type != CT_FPAREN_OPEN
-         && frm->pse[frm->pse_tos].type != CT_SPAREN_OPEN))
+   if (  pc.type == CT_SQUARE_OPEN
+      || (pc.type == CT_BRACE_OPEN && pc.parent_type != CT_ASSIGN)
+      || pc.type == CT_BRACE_CLOSE
+      || pc.type == CT_VBRACE_CLOSE
+      || (pc.type == CT_SPAREN_OPEN && pc.parent_type == CT_FOR)
+      || pc.type == CT_COLON
+      || pc.type == CT_OC_END
+      || (  chunk_is_semicolon(&pc)
+         && frm.pse[frm.pse_tos].type != CT_PAREN_OPEN
+         && frm.pse[frm.pse_tos].type != CT_FPAREN_OPEN
+         && frm.pse[frm.pse_tos].type != CT_SPAREN_OPEN))
    {
       LOG_FMT(LSTMT, "%s(%d): orig_line is %zu, reset1 stmt on '%s'\n",
-              __func__, __LINE__, pc->orig_line, pc->text());
-      frm->stmt_count = 0;
-      frm->expr_count = 0;
+              __func__, __LINE__, pc.orig_line, pc.text());
+      frm.stmt_count = 0;
+      frm.expr_count = 0;
    }
 
    // Mark expression starts
-   chunk_t *tmp = chunk_get_next_ncnl(pc);
-   if (  pc->type == CT_ARITH
-      || pc->type == CT_ASSIGN
-      || pc->type == CT_CASE
-      || pc->type == CT_COMPARE
-      || (  pc->type == CT_STAR
+   chunk_t *tmp = chunk_get_next_ncnl(&pc);
+   if (  pc.type == CT_ARITH
+      || pc.type == CT_ASSIGN
+      || pc.type == CT_CASE
+      || pc.type == CT_COMPARE
+      || (  pc.type == CT_STAR
          && tmp != nullptr && tmp->type != CT_STAR)
-      || pc->type == CT_BOOL
-      || pc->type == CT_MINUS
-      || pc->type == CT_PLUS
-      || pc->type == CT_CARET
-      || pc->type == CT_ANGLE_OPEN
-      || pc->type == CT_ANGLE_CLOSE
-      || pc->type == CT_RETURN
-      || pc->type == CT_THROW
-      || pc->type == CT_GOTO
-      || pc->type == CT_CONTINUE
-      || pc->type == CT_PAREN_OPEN
-      || pc->type == CT_FPAREN_OPEN
-      || pc->type == CT_SPAREN_OPEN
-      || pc->type == CT_BRACE_OPEN
-      || chunk_is_semicolon(pc)
-      || pc->type == CT_COMMA
-      || pc->type == CT_NOT
-      || pc->type == CT_INV
-      || pc->type == CT_COLON
-      || pc->type == CT_QUESTION)
+      || pc.type == CT_BOOL
+      || pc.type == CT_MINUS
+      || pc.type == CT_PLUS
+      || pc.type == CT_CARET
+      || pc.type == CT_ANGLE_OPEN
+      || pc.type == CT_ANGLE_CLOSE
+      || pc.type == CT_RETURN
+      || pc.type == CT_THROW
+      || pc.type == CT_GOTO
+      || pc.type == CT_CONTINUE
+      || pc.type == CT_PAREN_OPEN
+      || pc.type == CT_FPAREN_OPEN
+      || pc.type == CT_SPAREN_OPEN
+      || pc.type == CT_BRACE_OPEN
+      || chunk_is_semicolon(&pc)
+      || pc.type == CT_COMMA
+      || pc.type == CT_NOT
+      || pc.type == CT_INV
+      || pc.type == CT_COLON
+      || pc.type == CT_QUESTION)
    {
-      frm->expr_count = 0;
+      frm.expr_count = 0;
       LOG_FMT(LSTMT, "%s(%d): orig_line is %zu, reset expr on '%s'\n",
-              __func__, __LINE__, pc->orig_line, pc->text());
+              __func__, __LINE__, pc.orig_line, pc.text());
    }
-   else if (pc->type == CT_BRACE_CLOSE)
+   else if (pc.type == CT_BRACE_CLOSE)
    {
       if (!cpd.consumed)
       {
          size_t file_pp_level = ifdef_over_whole_file() ? 1 : 0;
-         if (!cpd.unc_off_used && pc->pp_level == file_pp_level)
+         if (!cpd.unc_off_used && pc.pp_level == file_pp_level)
          {
             // fatal error
             char *outputMessage;
             if (cpd.settings[UO_tok_split_gte].b)
             {
                outputMessage = make_message("Unmatched BRACE_CLOSE\nat orig_line=%zu, orig_col=%zu\n",
-                                            pc->orig_line, pc->orig_col);
+                                            pc.orig_line, pc.orig_col);
             }
             else
             {
                outputMessage = make_message("Unmatched BRACE_CLOSE\nat orig_line=%zu, orig_col=%zu\nTry the option 'tok_split_gte = true'\n",
-                                            pc->orig_line, pc->orig_col);
+                                            pc.orig_line, pc.orig_col);
             }
             fprintf(stderr, "%s", outputMessage);
             free(outputMessage);
