@@ -51,7 +51,7 @@ static void print_stack(log_sev_t logsev, const char *str, parse_frame_t *frm, c
 static bool maybe_while_of_do(const chunk_t &pc);
 
 
-static void push_fmr_pse(parse_frame_t *frm, chunk_t *pc, brace_stage_e stage, const char *logtext);
+static void push_fmr_pse(parse_frame_t &frm, chunk_t &pc, brace_stage_e stage, const char *logtext);
 
 
 /**
@@ -258,18 +258,18 @@ static bool maybe_while_of_do(const chunk_t &pc)
 }
 
 
-static void push_fmr_pse(parse_frame_t *frm, chunk_t *pc,
+static void push_fmr_pse(parse_frame_t &frm, chunk_t &pc,
                          brace_stage_e stage, const char *logtext)
 {
    LOG_FUNC_ENTRY();
-   if (frm->pse_tos < ((int)ARRAY_SIZE(frm->pse) - 1))
+   if (frm.pse_tos < ((int)ARRAY_SIZE(frm.pse) - 1))
    {
-      frm->pse_tos++;
-      frm->pse[frm->pse_tos].type  = pc->type;
-      frm->pse[frm->pse_tos].stage = stage;
-      frm->pse[frm->pse_tos].pc    = pc;
+      frm.pse_tos++;
+      frm.pse[frm.pse_tos].type  = pc.type;
+      frm.pse[frm.pse_tos].stage = stage;
+      frm.pse[frm.pse_tos].pc    = &pc;
 
-      print_stack(LBCSPUSH, logtext, frm, pc);
+      print_stack(LBCSPUSH, logtext, &frm, &pc);
    }
    else
    {
@@ -602,7 +602,7 @@ static void parse_cleanup(parse_frame_t &frm, chunk_t &pc)
       {
          frm.brace_level++;
       }
-      push_fmr_pse(&frm, &pc, brace_stage_e::NONE, "+Open   ");
+      push_fmr_pse(frm, pc, brace_stage_e::NONE, "+Open   ");
       frm.pse[frm.pse_tos].parent = parent;
       set_chunk_parent(&pc, parent);
    }
@@ -616,7 +616,7 @@ static void parse_cleanup(parse_frame_t &frm, chunk_t &pc)
     */
    if (patcls == pattern_class_e::BRACED)
    {
-      push_fmr_pse(&frm, &pc,
+      push_fmr_pse(frm, pc,
                    (pc.type == CT_DO) ? brace_stage_e::BRACE_DO : brace_stage_e::BRACE2,
                    "+ComplexBraced");
    }
@@ -629,15 +629,15 @@ static void parse_cleanup(parse_frame_t &frm, chunk_t &pc)
          set_chunk_type(&pc, CT_WHILE_OF_DO);
          bs = brace_stage_e::WOD_PAREN;
       }
-      push_fmr_pse(&frm, &pc, bs, "+ComplexParenBraced");
+      push_fmr_pse(frm, pc, bs, "+ComplexParenBraced");
    }
    else if (patcls == pattern_class_e::OPBRACED)
    {
-      push_fmr_pse(&frm, &pc, brace_stage_e::OP_PAREN1, "+ComplexOpParenBraced");
+      push_fmr_pse(frm, pc, brace_stage_e::OP_PAREN1, "+ComplexOpParenBraced");
    }
    else if (patcls == pattern_class_e::ELSE)
    {
-      push_fmr_pse(&frm, &pc, brace_stage_e::ELSEIF, "+ComplexElse");
+      push_fmr_pse(frm, pc, brace_stage_e::ELSEIF, "+ComplexElse");
    }
 
    /*
@@ -863,7 +863,7 @@ static bool check_complex_statements(parse_frame_t &frm, chunk_t &pc)
          frm.level++;
          frm.brace_level++;
 
-         push_fmr_pse(&frm, vbrace, brace_stage_e::NONE, "+VBrace ");
+         push_fmr_pse(frm, *vbrace, brace_stage_e::NONE, "+VBrace ");
          frm.pse[frm.pse_tos].parent = parent;
 
          // update the level of pc
