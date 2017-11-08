@@ -1008,10 +1008,8 @@ static bool handle_complex_close(parse_frame_t &frm, chunk_t &pc)
 static chunk_t *insert_vbrace(chunk_t &pc, bool after, const parse_frame_t &frm)
 {
    LOG_FUNC_ENTRY();
-   chunk_t chunk;
-   chunk_t *rv;
-   chunk_t *ref;
 
+   chunk_t chunk;
    chunk.orig_line   = pc.orig_line;
    chunk.parent_type = frm.pse[frm.pse_tos].type;
    chunk.level       = frm.level;
@@ -1022,47 +1020,58 @@ static chunk_t *insert_vbrace(chunk_t &pc, bool after, const parse_frame_t &frm)
    if (after)
    {
       chunk.type = CT_VBRACE_CLOSE;
-      rv         = chunk_add_after(&chunk, &pc);
+      return(chunk_add_after(&chunk, &pc));
    }
-   else
+
+
+   chunk_t *ref = chunk_get_prev(&pc);
+   if (ref == nullptr)
    {
-      ref = chunk_get_prev(&pc);
-      if ((ref->flags & PCF_IN_PREPROC) == 0)
-      {
-         chunk.flags &= ~PCF_IN_PREPROC;
-      }
-
-      while (chunk_is_newline(ref) || chunk_is_comment(ref))
-      {
-         ref->level++;
-         ref->brace_level++;
-         ref = chunk_get_prev(ref);
-      }
-
-      // Don't back into a preprocessor
-      if (  ((pc.flags & PCF_IN_PREPROC) == 0)
-         && (ref->flags & PCF_IN_PREPROC))
-      {
-         if (ref->type == CT_PREPROC_BODY)
-         {
-            do
-            {
-               ref = chunk_get_prev(ref);
-            } while (  ref != nullptr
-                    && (ref->flags & PCF_IN_PREPROC));
-         }
-         else
-         {
-            ref = chunk_get_next(ref);
-         }
-      }
-
-      chunk.orig_line = ref->orig_line;
-      chunk.column    = ref->column + ref->len() + 1;
-      chunk.type      = CT_VBRACE_OPEN;
-      rv              = chunk_add_after(&chunk, ref);
+      return(nullptr);
    }
-   return(rv);
+
+   if ((ref->flags & PCF_IN_PREPROC) == 0)
+   {
+      chunk.flags &= ~PCF_IN_PREPROC;
+   }
+
+   while (chunk_is_newline(ref) || chunk_is_comment(ref))
+   {
+      ref->level++;
+      ref->brace_level++;
+      ref = chunk_get_prev(ref);
+   }
+   if (ref == nullptr)
+   {
+      return(nullptr);
+   }
+
+   // Don't back into a preprocessor
+   if (  (pc.flags & PCF_IN_PREPROC) == 0
+      && (ref->flags & PCF_IN_PREPROC) != 0)
+   {
+      if (ref->type == CT_PREPROC_BODY)
+      {
+         while (ref != nullptr && (ref->flags & PCF_IN_PREPROC))
+         {
+            ref = chunk_get_prev(ref);
+         }
+      }
+      else
+      {
+         ref = chunk_get_next(ref);
+      }
+   }
+   if (ref == nullptr)
+   {
+      return(nullptr);
+   }
+
+   chunk.orig_line = ref->orig_line;
+   chunk.column    = ref->column + ref->len() + 1;
+   chunk.type      = CT_VBRACE_OPEN;
+
+   return(chunk_add_after(&chunk, ref));
 } // insert_vbrace
 
 
