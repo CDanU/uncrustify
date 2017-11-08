@@ -43,7 +43,7 @@ static void print_stack(log_sev_t logsev, const char *str, parse_frame_t *frm, c
  * pc is a CT_WHILE.
  * Scan backwards to see if we find a brace/vbrace with the parent set to CT_DO
  */
-static bool maybe_while_of_do(chunk_t *pc);
+static bool maybe_while_of_do(const chunk_t &pc);
 
 
 static void push_fmr_pse(parse_frame_t *frm, chunk_t *pc, brace_stage_e stage, const char *logtext);
@@ -222,12 +222,12 @@ void brace_cleanup(void)
 } // brace_cleanup
 
 
-static bool maybe_while_of_do(chunk_t *pc)
+static bool maybe_while_of_do(const chunk_t &pc)
 {
    LOG_FUNC_ENTRY();
    chunk_t *prev;
 
-   prev = chunk_get_prev_ncnl(pc);
+   prev = chunk_get_prev_ncnl(&pc);
    if (prev == nullptr || !(prev->flags & PCF_IN_PREPROC))
    {
       return(false);
@@ -623,7 +623,7 @@ static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
    {
       brace_stage_e bs = brace_stage_e::PAREN1;
 
-      if (pc->type == CT_WHILE && maybe_while_of_do(pc))
+      if (pc->type == CT_WHILE && maybe_while_of_do(*pc))
       {
          set_chunk_type(pc, CT_WHILE_OF_DO);
          bs = brace_stage_e::WOD_PAREN;
