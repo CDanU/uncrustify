@@ -74,7 +74,7 @@ static void parse_cleanup(parse_frame_t *frm, chunk_t *pc);
  *
  * @return true - done with this chunk, false - keep processing
  */
-static bool check_complex_statements(parse_frame_t *frm, chunk_t *pc);
+static bool check_complex_statements(parse_frame_t &frm, chunk_t &pc);
 
 
 /**
@@ -328,6 +328,11 @@ static void push_fmr_pse(parse_frame_t *frm, chunk_t *pc,
 static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
 {
    LOG_FUNC_ENTRY();
+   if(frm == nullptr || pc == nullptr)
+   {
+       return;
+   }
+
 
    LOG_FMT(LTOK, "%s(%d): orig_line is %zu, type is %s, tos is %zu, TOS.type is %s, TOS.stage is %u\n",
            __func__, __LINE__, pc->orig_line, get_token_name(pc->type),
@@ -376,7 +381,7 @@ static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
    // Check the progression of complex statements
    if (frm->pse[frm->pse_tos].stage != brace_stage_e::NONE)
    {
-      if (check_complex_statements(frm, pc))
+      if (check_complex_statements(*frm, *pc))
       {
          return;
       }
@@ -720,174 +725,173 @@ static void parse_cleanup(parse_frame_t *frm, chunk_t *pc)
 } // parse_cleanup
 
 
-static bool check_complex_statements(parse_frame_t *frm, chunk_t *pc)
+static bool check_complex_statements(parse_frame_t &frm, chunk_t &pc)
 {
    LOG_FUNC_ENTRY();
-   c_token_t parent;
 
    // Turn an optional parenthesis into either a real parenthesis or a brace
-   if (frm->pse[frm->pse_tos].stage == brace_stage_e::OP_PAREN1)
+   if (frm.pse[frm.pse_tos].stage == brace_stage_e::OP_PAREN1)
    {
-      frm->pse[frm->pse_tos].stage = (pc->type != CT_PAREN_OPEN) ? brace_stage_e::BRACE2 : brace_stage_e::PAREN1;
+      frm.pse[frm.pse_tos].stage = (pc.type != CT_PAREN_OPEN) ? brace_stage_e::BRACE2 : brace_stage_e::PAREN1;
    }
 
    // Check for CT_ELSE after CT_IF
-   while (frm->pse[frm->pse_tos].stage == brace_stage_e::ELSE)
+   while (frm.pse[frm.pse_tos].stage == brace_stage_e::ELSE)
    {
-      if (pc->type == CT_ELSE)
+      if (pc.type == CT_ELSE)
       {
          // Replace CT_IF with CT_ELSE on the stack & we are done
-         frm->pse[frm->pse_tos].type  = CT_ELSE;
-         frm->pse[frm->pse_tos].stage = brace_stage_e::ELSEIF;
-         print_stack(LBCSSWAP, "=Swap   ", frm, pc);
+         frm.pse[frm.pse_tos].type  = CT_ELSE;
+         frm.pse[frm.pse_tos].stage = brace_stage_e::ELSEIF;
+         print_stack(LBCSSWAP, "=Swap   ", &frm, &pc);
          return(true);
       }
 
       // Remove the CT_IF and close the statement
-      frm->pse_tos--;
-      print_stack(LBCSPOP, "-IF-CCS ", frm, pc);
-      if (close_statement(frm, pc))
+      frm.pse_tos--;
+      print_stack(LBCSPOP, "-IF-CCS ", &frm, &pc);
+      if (close_statement(&frm, &pc))
       {
          return(true);
       }
    }
 
    // Check for CT_IF after CT_ELSE
-   if (frm->pse[frm->pse_tos].stage == brace_stage_e::ELSEIF)
+   if (frm.pse[frm.pse_tos].stage == brace_stage_e::ELSEIF)
    {
-      if (pc->type == CT_IF)
+      if (pc.type == CT_IF)
       {
          if (  !cpd.settings[UO_indent_else_if].b
-            || !chunk_is_newline(chunk_get_prev_nc(pc)))
+            || !chunk_is_newline(chunk_get_prev_nc(&pc)))
          {
             // Replace CT_ELSE with CT_IF
-            set_chunk_type(pc, CT_ELSEIF);
-            frm->pse[frm->pse_tos].type  = CT_ELSEIF;
-            frm->pse[frm->pse_tos].stage = brace_stage_e::PAREN1;
+            set_chunk_type(&pc, CT_ELSEIF);
+            frm.pse[frm.pse_tos].type  = CT_ELSEIF;
+            frm.pse[frm.pse_tos].stage = brace_stage_e::PAREN1;
             return(true);
          }
       }
 
       // Jump to the 'expecting brace' stage
-      frm->pse[frm->pse_tos].stage = brace_stage_e::BRACE2;
+      frm.pse[frm.pse_tos].stage = brace_stage_e::BRACE2;
    }
 
    // Check for CT_CATCH or CT_FINALLY after CT_TRY or CT_CATCH
-   while (frm->pse[frm->pse_tos].stage == brace_stage_e::CATCH)
+   while (frm.pse[frm.pse_tos].stage == brace_stage_e::CATCH)
    {
-      if (pc->type == CT_CATCH || pc->type == CT_FINALLY)
+      if (pc.type == CT_CATCH || pc.type == CT_FINALLY)
       {
          // Replace CT_TRY with CT_CATCH on the stack & we are done
-         frm->pse[frm->pse_tos].type  = pc->type;
-         frm->pse[frm->pse_tos].stage = (pc->type == CT_CATCH) ? brace_stage_e::CATCH_WHEN : brace_stage_e::BRACE2;
-         print_stack(LBCSSWAP, "=Swap   ", frm, pc);
+         frm.pse[frm.pse_tos].type  = pc.type;
+         frm.pse[frm.pse_tos].stage = (pc.type == CT_CATCH) ? brace_stage_e::CATCH_WHEN : brace_stage_e::BRACE2;
+         print_stack(LBCSSWAP, "=Swap   ", &frm, &pc);
          return(true);
       }
 
       // Remove the CT_TRY and close the statement
-      frm->pse_tos--;
-      print_stack(LBCSPOP, "-TRY-CCS ", frm, pc);
-      if (close_statement(frm, pc))
+      frm.pse_tos--;
+      print_stack(LBCSPOP, "-TRY-CCS ", &frm, &pc);
+      if (close_statement(&frm, &pc))
       {
          return(true);
       }
    }
 
    // Check for optional parenthesis and optional CT_WHEN after CT_CATCH
-   if (frm->pse[frm->pse_tos].stage == brace_stage_e::CATCH_WHEN)
+   if (frm.pse[frm.pse_tos].stage == brace_stage_e::CATCH_WHEN)
    {
-      if (pc->type == CT_PAREN_OPEN) // this is for the paren after "catch"
+      if (pc.type == CT_PAREN_OPEN) // this is for the paren after "catch"
       {
          // Replace CT_PAREN_OPEN with CT_SPAREN_OPEN
-         set_chunk_type(pc, CT_SPAREN_OPEN);
-         frm->pse[frm->pse_tos].type  = pc->type;
-         frm->pse[frm->pse_tos].stage = brace_stage_e::PAREN1;
+         set_chunk_type(&pc, CT_SPAREN_OPEN);
+         frm.pse[frm.pse_tos].type  = pc.type;
+         frm.pse[frm.pse_tos].stage = brace_stage_e::PAREN1;
          return(false);
       }
 
-      if (pc->type == CT_WHEN)
+      if (pc.type == CT_WHEN)
       {
-         frm->pse[frm->pse_tos].type  = pc->type;
-         frm->pse[frm->pse_tos].stage = brace_stage_e::OP_PAREN1;
+         frm.pse[frm.pse_tos].type  = pc.type;
+         frm.pse[frm.pse_tos].stage = brace_stage_e::OP_PAREN1;
          return(true);
       }
 
-      if (pc->type == CT_BRACE_OPEN)
+      if (pc.type == CT_BRACE_OPEN)
       {
-         frm->pse[frm->pse_tos].stage = brace_stage_e::BRACE2;
+         frm.pse[frm.pse_tos].stage = brace_stage_e::BRACE2;
          return(false);
       }
    }
 
    // Check for CT_WHILE after the CT_DO
-   if (frm->pse[frm->pse_tos].stage == brace_stage_e::WHILE)
+   if (frm.pse[frm.pse_tos].stage == brace_stage_e::WHILE)
    {
-      if (pc->type == CT_WHILE)
+      if (pc.type == CT_WHILE)
       {
-         set_chunk_type(pc, CT_WHILE_OF_DO);
-         frm->pse[frm->pse_tos].type  = CT_WHILE_OF_DO; //CT_WHILE;
-         frm->pse[frm->pse_tos].stage = brace_stage_e::WOD_PAREN;
+         set_chunk_type(&pc, CT_WHILE_OF_DO);
+         frm.pse[frm.pse_tos].type  = CT_WHILE_OF_DO; //CT_WHILE;
+         frm.pse[frm.pse_tos].stage = brace_stage_e::WOD_PAREN;
          return(true);
       }
 
       LOG_FMT(LWARN, "%s(%d): %s, orig_line is %zu, Error: Expected 'while', got '%s'\n",
-              __func__, __LINE__, cpd.filename, pc->orig_line, pc->text());
-      frm->pse_tos--;
-      print_stack(LBCSPOP, "-Error  ", frm, pc);
+              __func__, __LINE__, cpd.filename, pc.orig_line, pc.text());
+      frm.pse_tos--;
+      print_stack(LBCSPOP, "-Error  ", &frm, &pc);
       cpd.error_count++;
    }
 
    // Insert a CT_VBRACE_OPEN, if needed
-   if (  pc->type != CT_BRACE_OPEN
-      && (  (frm->pse[frm->pse_tos].stage == brace_stage_e::BRACE2)
-         || (frm->pse[frm->pse_tos].stage == brace_stage_e::BRACE_DO)))
+   if (  pc.type != CT_BRACE_OPEN
+      && (  (frm.pse[frm.pse_tos].stage == brace_stage_e::BRACE2)
+         || (frm.pse[frm.pse_tos].stage == brace_stage_e::BRACE_DO)))
    {
       if (  (cpd.lang_flags & LANG_CS)
-         && pc->type == CT_USING_STMT
+         && pc.type == CT_USING_STMT
          && (!cpd.settings[UO_indent_using_block].b))
       {
          // don't indent the using block
       }
       else
       {
-         parent = frm->pse[frm->pse_tos].type;
+         c_token_t parent = frm.pse[frm.pse_tos].type;
 
-         chunk_t *vbrace = insert_vbrace_open_before(pc, frm);
+         chunk_t   *vbrace = insert_vbrace_open_before(&pc, &frm);
          set_chunk_parent(vbrace, parent);
 
-         frm->level++;
-         frm->brace_level++;
+         frm.level++;
+         frm.brace_level++;
 
-         push_fmr_pse(frm, vbrace, brace_stage_e::NONE, "+VBrace ");
-         frm->pse[frm->pse_tos].parent = parent;
+         push_fmr_pse(&frm, vbrace, brace_stage_e::NONE, "+VBrace ");
+         frm.pse[frm.pse_tos].parent = parent;
 
          // update the level of pc
-         pc->level       = frm->level;
-         pc->brace_level = frm->brace_level;
+         pc.level       = frm.level;
+         pc.brace_level = frm.brace_level;
 
          // Mark as a start of a statement
-         frm->stmt_count = 0;
-         frm->expr_count = 0;
-         pc->flags      |= PCF_STMT_START | PCF_EXPR_START;
-         frm->stmt_count = 1;
-         frm->expr_count = 1;
+         frm.stmt_count = 0;
+         frm.expr_count = 0;
+         pc.flags      |= PCF_STMT_START | PCF_EXPR_START;
+         frm.stmt_count = 1;
+         frm.expr_count = 1;
          LOG_FMT(LSTMT, "%s(%d): orig_line is %zu, 2.marked '%s' as stmt start\n",
-                 __func__, __LINE__, pc->orig_line, pc->text());
+                 __func__, __LINE__, pc.orig_line, pc.text());
       }
    }
 
    // Verify open parenthesis in complex statement
-   if (  pc->type != CT_PAREN_OPEN
-      && (  (frm->pse[frm->pse_tos].stage == brace_stage_e::PAREN1)
-         || (frm->pse[frm->pse_tos].stage == brace_stage_e::WOD_PAREN)))
+   if (  pc.type != CT_PAREN_OPEN
+      && (  (frm.pse[frm.pse_tos].stage == brace_stage_e::PAREN1)
+         || (frm.pse[frm.pse_tos].stage == brace_stage_e::WOD_PAREN)))
    {
       LOG_FMT(LWARN, "%s(%d): %s, orig_line is %zu, Error: Expected '(', got '%s' for '%s'\n",
-              __func__, __LINE__, cpd.filename, pc->orig_line, pc->text(),
-              get_token_name(frm->pse[frm->pse_tos].type));
+              __func__, __LINE__, cpd.filename, pc.orig_line, pc.text(),
+              get_token_name(frm.pse[frm.pse_tos].type));
 
       // Throw out the complex statement
-      frm->pse_tos--;
-      print_stack(LBCSPOP, "-Error  ", frm, pc);
+      frm.pse_tos--;
+      print_stack(LBCSPOP, "-Error  ", &frm, &pc);
       cpd.error_count++;
    }
 
