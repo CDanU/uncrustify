@@ -24,6 +24,11 @@
 #include "helper_for_print.h"
 #include "indent.h"
 
+#include <stdexcept>
+
+
+using namespace std;
+
 
 /*
  * abbreviations used:
@@ -53,7 +58,7 @@ static void push_fmr_pse(parse_frame_t *frm, chunk_t *pc, brace_stage_e stage, c
  * @param after  determines: true  - insert_vbrace_close_after(pc, frm)
  *                           false - insert_vbrace_open_before(pc, frm)
  */
-static chunk_t *insert_vbrace(chunk_t *pc, bool after, parse_frame_t *frm);
+static chunk_t *insert_vbrace(chunk_t &pc, bool after, parse_frame_t &frm);
 
 #define insert_vbrace_close_after(pc, frm)    insert_vbrace(pc, true, frm)
 #define insert_vbrace_open_before(pc, frm)    insert_vbrace(pc, false, frm)
@@ -852,7 +857,7 @@ static bool check_complex_statements(parse_frame_t &frm, chunk_t &pc)
       {
          c_token_t parent = frm.pse[frm.pse_tos].type;
 
-         chunk_t   *vbrace = insert_vbrace_open_before(&pc, &frm);
+         chunk_t   *vbrace = insert_vbrace_open_before(pc, frm);
          set_chunk_parent(vbrace, parent);
 
          frm.level++;
@@ -999,27 +1004,28 @@ static bool handle_complex_close(parse_frame_t *frm, chunk_t *pc)
 } // handle_complex_close
 
 
-static chunk_t *insert_vbrace(chunk_t *pc, bool after, parse_frame_t *frm)
+static chunk_t *insert_vbrace(chunk_t &pc, bool after, parse_frame_t &frm)
 {
    LOG_FUNC_ENTRY();
    chunk_t chunk;
    chunk_t *rv;
    chunk_t *ref;
 
-   chunk.orig_line   = pc->orig_line;
-   chunk.parent_type = frm->pse[frm->pse_tos].type;
-   chunk.level       = frm->level;
-   chunk.brace_level = frm->brace_level;
-   chunk.flags       = pc->flags & PCF_COPY_FLAGS;
+   chunk.orig_line   = pc.orig_line;
+   chunk.parent_type = frm.pse[frm.pse_tos].type;
+   chunk.level       = frm.level;
+   chunk.brace_level = frm.brace_level;
+   chunk.flags       = pc.flags & PCF_COPY_FLAGS;
    chunk.str         = "";
+
    if (after)
    {
       chunk.type = CT_VBRACE_CLOSE;
-      rv         = chunk_add_after(&chunk, pc);
+      rv         = chunk_add_after(&chunk, &pc);
    }
    else
    {
-      ref = chunk_get_prev(pc);
+      ref = chunk_get_prev(&pc);
       if ((ref->flags & PCF_IN_PREPROC) == 0)
       {
          chunk.flags &= ~PCF_IN_PREPROC;
@@ -1033,7 +1039,7 @@ static chunk_t *insert_vbrace(chunk_t *pc, bool after, parse_frame_t *frm)
       }
 
       // Don't back into a preprocessor
-      if (  ((pc->flags & PCF_IN_PREPROC) == 0)
+      if (  ((pc.flags & PCF_IN_PREPROC) == 0)
          && (ref->flags & PCF_IN_PREPROC))
       {
          if (ref->type == CT_PREPROC_BODY)
@@ -1062,6 +1068,12 @@ static chunk_t *insert_vbrace(chunk_t *pc, bool after, parse_frame_t *frm)
 bool close_statement(parse_frame_t *frm, chunk_t *pc)
 {
    LOG_FUNC_ENTRY();
+   if (frm == nullptr || pc == nullptr)
+   {
+      throw invalid_argument(string(__func__) + ":" + to_string(__LINE__)
+                             + "args cannot be nullptr");
+   }
+
    chunk_t *vbc = pc;
 
    LOG_FMT(LTOK, "%s(%d): orig_line is %zu, type is %s, '%s' type is %s, stage is %u\n",
@@ -1087,13 +1099,13 @@ bool close_statement(parse_frame_t *frm, chunk_t *pc)
       // If the current token has already been consumed, then add after it
       if (cpd.consumed)
       {
-         insert_vbrace_close_after(pc, frm);
+         insert_vbrace_close_after(*pc, *frm);
       }
       else
       {
          // otherwise, add before it and consume the vbrace
          vbc = chunk_get_prev_ncnl(pc);
-         vbc = insert_vbrace_close_after(vbc, frm);
+         vbc = insert_vbrace_close_after(*vbc, *frm);
          set_chunk_parent(vbc, frm->pse[frm->pse_tos].parent);
 
          frm->level--;
