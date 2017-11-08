@@ -41,7 +41,7 @@ using namespace std;
 static size_t preproc_start(parse_frame_t &frm, chunk_t &pc);
 
 
-static void print_stack(log_sev_t logsev, const char *str, parse_frame_t &frm, chunk_t &pc);
+static void print_stack(log_sev_t logsev, const char *str, const parse_frame_t &frm, const chunk_t &pc);
 
 
 /**
@@ -58,7 +58,7 @@ static void push_fmr_pse(parse_frame_t &frm, chunk_t &pc, brace_stage_e stage, c
  * @param after  determines: true  - insert_vbrace_close_after(pc, frm)
  *                           false - insert_vbrace_open_before(pc, frm)
  */
-static chunk_t *insert_vbrace(chunk_t &pc, bool after, parse_frame_t &frm);
+static chunk_t *insert_vbrace(chunk_t &pc, bool after, const parse_frame_t &frm);
 
 #define insert_vbrace_close_after(pc, frm)    insert_vbrace(pc, true, frm)
 #define insert_vbrace_open_before(pc, frm)    insert_vbrace(pc, false, frm)
@@ -131,8 +131,8 @@ static size_t preproc_start(parse_frame_t &frm, chunk_t &pc)
 }
 
 
-static void print_stack(log_sev_t logsev, const char *str, parse_frame_t &frm,
-                        chunk_t &pc)
+static void print_stack(log_sev_t logsev, const char *str,
+                        const parse_frame_t &frm, const chunk_t &pc)
 {
    UNUSED(pc);
    LOG_FUNC_ENTRY();
@@ -1005,7 +1005,7 @@ static bool handle_complex_close(parse_frame_t &frm, chunk_t &pc)
 } // handle_complex_close
 
 
-static chunk_t *insert_vbrace(chunk_t &pc, bool after, parse_frame_t &frm)
+static chunk_t *insert_vbrace(chunk_t &pc, bool after, const parse_frame_t &frm)
 {
    LOG_FUNC_ENTRY();
    chunk_t chunk;
