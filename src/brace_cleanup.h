@@ -28,7 +28,7 @@ void brace_cleanup(void);
  * @retval true   done with this chunk
  * @retval false  keep processing
  */
-bool close_statement(parse_frame_t *frm, chunk_t *pc);
+bool close_statement(parse_frame_t &frm, chunk_t &pc);
 
 
 #endif /* BRACE_CLEANUP_H_INCLUDED */
