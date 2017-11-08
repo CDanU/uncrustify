@@ -91,7 +91,7 @@ static bool check_complex_statements(parse_frame_t &frm, chunk_t &pc);
  *
  * @return true - done with this chunk, false - keep processing
  */
-static bool handle_complex_close(parse_frame_t *frm, chunk_t *pc);
+static bool handle_complex_close(parse_frame_t &frm, chunk_t &pc);
 
 
 static size_t preproc_start(parse_frame_t &frm, chunk_t &pc)
@@ -470,7 +470,7 @@ static void parse_cleanup(parse_frame_t &frm, chunk_t &pc)
          // See if we are in a complex statement
          if (frm.pse[frm.pse_tos].stage != brace_stage_e::NONE)
          {
-            handle_complex_close(&frm, &pc);
+            handle_complex_close(frm, pc);
          }
       }
    }
@@ -513,7 +513,7 @@ static void parse_cleanup(parse_frame_t &frm, chunk_t &pc)
                     cpd.filename, __func__, __LINE__, pc.orig_line, get_token_name(pc.type));
             cpd.error_count++;
          }
-         handle_complex_close(&frm, &pc);
+         handle_complex_close(frm, pc);
       }
    }
 
@@ -900,57 +900,57 @@ static bool check_complex_statements(parse_frame_t &frm, chunk_t &pc)
 } // check_complex_statements
 
 
-static bool handle_complex_close(parse_frame_t *frm, chunk_t *pc)
+static bool handle_complex_close(parse_frame_t &frm, chunk_t &pc)
 {
    LOG_FUNC_ENTRY();
    chunk_t *next;
 
-   if (frm->pse[frm->pse_tos].stage == brace_stage_e::PAREN1)
+   if (frm.pse[frm.pse_tos].stage == brace_stage_e::PAREN1)
    {
-      if (pc->next != nullptr && pc->next->type == CT_WHEN)
+      if (pc.next != nullptr && pc.next->type == CT_WHEN)
       {
-         frm->pse[frm->pse_tos].type  = pc->type;
-         frm->pse[frm->pse_tos].stage = brace_stage_e::CATCH_WHEN;
+         frm.pse[frm.pse_tos].type  = pc.type;
+         frm.pse[frm.pse_tos].stage = brace_stage_e::CATCH_WHEN;
          return(true);
       }
 
       // PAREN1 always => BRACE2
-      frm->pse[frm->pse_tos].stage = brace_stage_e::BRACE2;
+      frm.pse[frm.pse_tos].stage = brace_stage_e::BRACE2;
    }
-   else if (frm->pse[frm->pse_tos].stage == brace_stage_e::BRACE2)
+   else if (frm.pse[frm.pse_tos].stage == brace_stage_e::BRACE2)
    {
       // BRACE2: IF => ELSE, anyting else => close
-      if (  (frm->pse[frm->pse_tos].type == CT_IF)
-         || (frm->pse[frm->pse_tos].type == CT_ELSEIF))
+      if (  (frm.pse[frm.pse_tos].type == CT_IF)
+         || (frm.pse[frm.pse_tos].type == CT_ELSEIF))
       {
-         frm->pse[frm->pse_tos].stage = brace_stage_e::ELSE;
+         frm.pse[frm.pse_tos].stage = brace_stage_e::ELSE;
 
          // If the next chunk isn't CT_ELSE, close the statement
-         next = chunk_get_next_ncnl(pc);
+         next = chunk_get_next_ncnl(&pc);
          if (next != nullptr && next->type != CT_ELSE)
          {
-            frm->pse_tos--;
-            print_stack(LBCSPOP, "-IF-HCS ", frm, pc);
-            if (close_statement(frm, pc))
+            frm.pse_tos--;
+            print_stack(LBCSPOP, "-IF-HCS ", &frm, &pc);
+            if (close_statement(&frm, &pc))
             {
                return(true);
             }
          }
       }
-      else if (  (frm->pse[frm->pse_tos].type == CT_TRY)
-              || (frm->pse[frm->pse_tos].type == CT_CATCH))
+      else if (  (frm.pse[frm.pse_tos].type == CT_TRY)
+              || (frm.pse[frm.pse_tos].type == CT_CATCH))
       {
-         frm->pse[frm->pse_tos].stage = brace_stage_e::CATCH;
+         frm.pse[frm.pse_tos].stage = brace_stage_e::CATCH;
 
          // If the next chunk isn't CT_CATCH or CT_FINALLY, close the statement
-         next = chunk_get_next_ncnl(pc);
+         next = chunk_get_next_ncnl(&pc);
          if (  next != nullptr
             && next->type != CT_CATCH
             && next->type != CT_FINALLY)
          {
-            frm->pse_tos--;
-            print_stack(LBCSPOP, "-TRY-HCS ", frm, pc);
-            if (close_statement(frm, pc))
+            frm.pse_tos--;
+            print_stack(LBCSPOP, "-TRY-HCS ", &frm, &pc);
+            if (close_statement(&frm, &pc))
             {
                return(true);
             }
@@ -959,34 +959,34 @@ static bool handle_complex_close(parse_frame_t *frm, chunk_t *pc)
       else
       {
          LOG_FMT(LNOTE, "%s(%d): close_statement on %s brace_stage_e::BRACE2\n",
-                 __func__, __LINE__, get_token_name(frm->pse[frm->pse_tos].type));
-         frm->pse_tos--;
-         print_stack(LBCSPOP, "-HCC B2 ", frm, pc);
-         if (close_statement(frm, pc))
+                 __func__, __LINE__, get_token_name(frm.pse[frm.pse_tos].type));
+         frm.pse_tos--;
+         print_stack(LBCSPOP, "-HCC B2 ", &frm, &pc);
+         if (close_statement(&frm, &pc))
          {
             return(true);
          }
       }
    }
-   else if (frm->pse[frm->pse_tos].stage == brace_stage_e::BRACE_DO)
+   else if (frm.pse[frm.pse_tos].stage == brace_stage_e::BRACE_DO)
    {
-      frm->pse[frm->pse_tos].stage = brace_stage_e::WHILE;
+      frm.pse[frm.pse_tos].stage = brace_stage_e::WHILE;
    }
-   else if (frm->pse[frm->pse_tos].stage == brace_stage_e::WOD_PAREN)
+   else if (frm.pse[frm.pse_tos].stage == brace_stage_e::WOD_PAREN)
    {
       LOG_FMT(LNOTE, "%s(%d): close_statement on %s brace_stage_e::WOD_PAREN\n",
-              __func__, __LINE__, get_token_name(frm->pse[frm->pse_tos].type));
-      frm->pse[frm->pse_tos].stage = brace_stage_e::WOD_SEMI;
-      print_stack(LBCSPOP, "-HCC WoDP ", frm, pc);
+              __func__, __LINE__, get_token_name(frm.pse[frm.pse_tos].type));
+      frm.pse[frm.pse_tos].stage = brace_stage_e::WOD_SEMI;
+      print_stack(LBCSPOP, "-HCC WoDP ", &frm, &pc);
    }
-   else if (frm->pse[frm->pse_tos].stage == brace_stage_e::WOD_SEMI)
+   else if (frm.pse[frm.pse_tos].stage == brace_stage_e::WOD_SEMI)
    {
       LOG_FMT(LNOTE, "%s(%d): close_statement on %s brace_stage_e::WOD_SEMI\n",
-              __func__, __LINE__, get_token_name(frm->pse[frm->pse_tos].type));
-      frm->pse_tos--;
-      print_stack(LBCSPOP, "-HCC WoDS ", frm, pc);
+              __func__, __LINE__, get_token_name(frm.pse[frm.pse_tos].type));
+      frm.pse_tos--;
+      print_stack(LBCSPOP, "-HCC WoDS ", &frm, &pc);
 
-      if (close_statement(frm, pc))
+      if (close_statement(&frm, &pc))
       {
          return(true);
       }
@@ -995,9 +995,9 @@ static bool handle_complex_close(parse_frame_t *frm, chunk_t *pc)
    {
       // PROBLEM
       LOG_FMT(LWARN, "%s(%d): %s:%zu Error: TOS.type='%s' TOS.stage=%u\n",
-              __func__, __LINE__, cpd.filename, pc->orig_line,
-              get_token_name(frm->pse[frm->pse_tos].type),
-              (unsigned int)frm->pse[frm->pse_tos].stage);
+              __func__, __LINE__, cpd.filename, pc.orig_line,
+              get_token_name(frm.pse[frm.pse_tos].type),
+              (unsigned int)frm.pse[frm.pse_tos].stage);
       cpd.error_count++;
    }
    return(false);
@@ -1127,7 +1127,7 @@ bool close_statement(parse_frame_t *frm, chunk_t *pc)
    // See if we are done with a complex statement
    if (frm->pse[frm->pse_tos].stage != brace_stage_e::NONE)
    {
-      if (handle_complex_close(frm, vbc))
+      if (handle_complex_close(*frm, *vbc))
       {
          return(true);
       }
