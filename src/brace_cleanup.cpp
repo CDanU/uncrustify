@@ -1074,9 +1074,6 @@ bool close_statement(parse_frame_t &frm, chunk_t &pc)
    {
       return(false);
    }
-
-   chunk_t *vbc = &pc;
-
    LOG_FMT(LTOK, "%s(%d): orig_line is %zu, type is %s, '%s' type is %s, stage is %u\n",
            __func__, __LINE__, pc.orig_line,
            get_token_name(pc.type), pc.text(),
@@ -1095,6 +1092,7 @@ bool close_statement(parse_frame_t &frm, chunk_t &pc)
     * Insert a CT_VBRACE_CLOSE, if needed:
     * If we are in a virtual brace and we are not ON a CT_VBRACE_CLOSE add one
     */
+   chunk_t *vbc = &pc;
    if (frm.pse[frm.pse_tos].type == CT_VBRACE_OPEN)
    {
       // If the current token has already been consumed, then add after it
