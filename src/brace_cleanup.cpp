@@ -236,9 +236,8 @@ void brace_cleanup(void)
 static bool maybe_while_of_do(const chunk_t &pc)
 {
    LOG_FUNC_ENTRY();
-   chunk_t *prev;
 
-   prev = chunk_get_prev_ncnl(&pc);
+   const chunk_t *prev = chunk_get_prev_ncnl(&pc);
    if (prev == nullptr || !(prev->flags & PCF_IN_PREPROC))
    {
       return(false);
