@@ -41,7 +41,7 @@ using namespace std;
 static size_t preproc_start(parse_frame_t &frm, chunk_t &pc);
 
 
-static void print_stack(log_sev_t logsev, const char *str, parse_frame_t *frm, chunk_t *pc);
+static void print_stack(log_sev_t logsev, const char *str, parse_frame_t &frm, chunk_t &pc);
 
 
 /**
@@ -131,25 +131,26 @@ static size_t preproc_start(parse_frame_t &frm, chunk_t &pc)
 }
 
 
-static void print_stack(log_sev_t logsev, const char *str,
-                        parse_frame_t *frm, chunk_t *pc)
+static void print_stack(log_sev_t logsev, const char *str, parse_frame_t &frm,
+                        chunk_t &pc)
 {
    UNUSED(pc);
    LOG_FUNC_ENTRY();
+
    if (log_sev_on(logsev))
    {
       log_fmt(logsev, "%8.8s", str);
 
-      for (size_t idx = 1; idx <= frm->pse_tos; idx++)
+      for (size_t idx = 1; idx <= frm.pse_tos; idx++)
       {
-         if (frm->pse[idx].stage != brace_stage_e::NONE)
+         if (frm.pse[idx].stage != brace_stage_e::NONE)
          {
             LOG_FMT(logsev, " [%s - %u]",
-                    get_token_name(frm->pse[idx].type), (unsigned int)frm->pse[idx].stage);
+                    get_token_name(frm.pse[idx].type), (unsigned int)frm.pse[idx].stage);
          }
          else
          {
-            LOG_FMT(logsev, " [%s]", get_token_name(frm->pse[idx].type));
+            LOG_FMT(logsev, " [%s]", get_token_name(frm.pse[idx].type));
          }
       }
       log_fmt(logsev, "\n");
@@ -224,7 +225,7 @@ void brace_cleanup(void)
       {
          cpd.consumed = false;
          parse_cleanup(frm, *pc);
-         print_stack(LBCSAFTER, (pc->type == CT_VBRACE_CLOSE) ? "Virt-}" : pc->str.c_str(), &frm, pc);
+         print_stack(LBCSAFTER, (pc->type == CT_VBRACE_CLOSE) ? "Virt-}" : pc->str.c_str(), frm, *pc);
       }
       pc = chunk_get_next(pc);
    }
@@ -269,7 +270,7 @@ static void push_fmr_pse(parse_frame_t &frm, chunk_t &pc,
       frm.pse[frm.pse_tos].stage = stage;
       frm.pse[frm.pse_tos].pc    = &pc;
 
-      print_stack(LBCSPUSH, logtext, &frm, &pc);
+      print_stack(LBCSPUSH, logtext, frm, pc);
    }
    else
    {
@@ -443,7 +444,7 @@ static void parse_cleanup(parse_frame_t &frm, chunk_t &pc)
                     __func__, __LINE__, cpd.filename, pc.orig_line, pc.text(),
                     get_token_name(frm.pse[frm.pse_tos].pc->type),
                     frm.pse[frm.pse_tos].pc->orig_line);
-            print_stack(LBCSPOP, "=Error  ", &frm, &pc);
+            print_stack(LBCSPOP, "=Error  ", frm, pc);
             cpd.error_count++;
          }
       }
@@ -465,7 +466,7 @@ static void parse_cleanup(parse_frame_t &frm, chunk_t &pc)
 
          // Pop the entry
          frm.pse_tos--;
-         print_stack(LBCSPOP, "-Close  ", &frm, &pc);
+         print_stack(LBCSPOP, "-Close  ", frm, pc);
 
          // See if we are in a complex statement
          if (frm.pse[frm.pse_tos].stage != brace_stage_e::NONE)
@@ -744,13 +745,13 @@ static bool check_complex_statements(parse_frame_t &frm, chunk_t &pc)
          // Replace CT_IF with CT_ELSE on the stack & we are done
          frm.pse[frm.pse_tos].type  = CT_ELSE;
          frm.pse[frm.pse_tos].stage = brace_stage_e::ELSEIF;
-         print_stack(LBCSSWAP, "=Swap   ", &frm, &pc);
+         print_stack(LBCSSWAP, "=Swap   ", frm, pc);
          return(true);
       }
 
       // Remove the CT_IF and close the statement
       frm.pse_tos--;
-      print_stack(LBCSPOP, "-IF-CCS ", &frm, &pc);
+      print_stack(LBCSPOP, "-IF-CCS ", frm, pc);
       if (close_statement(frm, pc))
       {
          return(true);
@@ -785,13 +786,13 @@ static bool check_complex_statements(parse_frame_t &frm, chunk_t &pc)
          // Replace CT_TRY with CT_CATCH on the stack & we are done
          frm.pse[frm.pse_tos].type  = pc.type;
          frm.pse[frm.pse_tos].stage = (pc.type == CT_CATCH) ? brace_stage_e::CATCH_WHEN : brace_stage_e::BRACE2;
-         print_stack(LBCSSWAP, "=Swap   ", &frm, &pc);
+         print_stack(LBCSSWAP, "=Swap   ", frm, pc);
          return(true);
       }
 
       // Remove the CT_TRY and close the statement
       frm.pse_tos--;
-      print_stack(LBCSPOP, "-TRY-CCS ", &frm, &pc);
+      print_stack(LBCSPOP, "-TRY-CCS ", frm, pc);
       if (close_statement(frm, pc))
       {
          return(true);
@@ -838,7 +839,7 @@ static bool check_complex_statements(parse_frame_t &frm, chunk_t &pc)
       LOG_FMT(LWARN, "%s(%d): %s, orig_line is %zu, Error: Expected 'while', got '%s'\n",
               __func__, __LINE__, cpd.filename, pc.orig_line, pc.text());
       frm.pse_tos--;
-      print_stack(LBCSPOP, "-Error  ", &frm, &pc);
+      print_stack(LBCSPOP, "-Error  ", frm, pc);
       cpd.error_count++;
    }
 
@@ -892,7 +893,7 @@ static bool check_complex_statements(parse_frame_t &frm, chunk_t &pc)
 
       // Throw out the complex statement
       frm.pse_tos--;
-      print_stack(LBCSPOP, "-Error  ", &frm, &pc);
+      print_stack(LBCSPOP, "-Error  ", frm, pc);
       cpd.error_count++;
    }
 
@@ -930,7 +931,7 @@ static bool handle_complex_close(parse_frame_t &frm, chunk_t &pc)
          if (next != nullptr && next->type != CT_ELSE)
          {
             frm.pse_tos--;
-            print_stack(LBCSPOP, "-IF-HCS ", &frm, &pc);
+            print_stack(LBCSPOP, "-IF-HCS ", frm, pc);
             if (close_statement(frm, pc))
             {
                return(true);
@@ -949,7 +950,7 @@ static bool handle_complex_close(parse_frame_t &frm, chunk_t &pc)
             && next->type != CT_FINALLY)
          {
             frm.pse_tos--;
-            print_stack(LBCSPOP, "-TRY-HCS ", &frm, &pc);
+            print_stack(LBCSPOP, "-TRY-HCS ", frm, pc);
             if (close_statement(frm, pc))
             {
                return(true);
@@ -961,7 +962,7 @@ static bool handle_complex_close(parse_frame_t &frm, chunk_t &pc)
          LOG_FMT(LNOTE, "%s(%d): close_statement on %s brace_stage_e::BRACE2\n",
                  __func__, __LINE__, get_token_name(frm.pse[frm.pse_tos].type));
          frm.pse_tos--;
-         print_stack(LBCSPOP, "-HCC B2 ", &frm, &pc);
+         print_stack(LBCSPOP, "-HCC B2 ", frm, pc);
          if (close_statement(frm, pc))
          {
             return(true);
@@ -977,14 +978,14 @@ static bool handle_complex_close(parse_frame_t &frm, chunk_t &pc)
       LOG_FMT(LNOTE, "%s(%d): close_statement on %s brace_stage_e::WOD_PAREN\n",
               __func__, __LINE__, get_token_name(frm.pse[frm.pse_tos].type));
       frm.pse[frm.pse_tos].stage = brace_stage_e::WOD_SEMI;
-      print_stack(LBCSPOP, "-HCC WoDP ", &frm, &pc);
+      print_stack(LBCSPOP, "-HCC WoDP ", frm, pc);
    }
    else if (frm.pse[frm.pse_tos].stage == brace_stage_e::WOD_SEMI)
    {
       LOG_FMT(LNOTE, "%s(%d): close_statement on %s brace_stage_e::WOD_SEMI\n",
               __func__, __LINE__, get_token_name(frm.pse[frm.pse_tos].type));
       frm.pse_tos--;
-      print_stack(LBCSPOP, "-HCC WoDS ", &frm, &pc);
+      print_stack(LBCSPOP, "-HCC WoDS ", frm, pc);
 
       if (close_statement(frm, pc))
       {
@@ -1115,7 +1116,7 @@ bool close_statement(parse_frame_t &frm, chunk_t &pc)
          pc.level       = frm.level;
          pc.brace_level = frm.brace_level;
 
-         print_stack(LBCSPOP, "-CS VB  ", &frm, &pc);
+         print_stack(LBCSPOP, "-CS VB  ", frm, pc);
 
          // And repeat the close
          close_statement(frm, pc);
