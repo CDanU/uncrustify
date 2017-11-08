@@ -33,7 +33,7 @@
  */
 
 
-static size_t preproc_start(parse_frame_t *frm, chunk_t *pc);
+static size_t preproc_start(parse_frame_t &frm, chunk_t &pc);
 
 
 static void print_stack(log_sev_t logsev, const char *str, parse_frame_t *frm, chunk_t *pc);
@@ -89,14 +89,14 @@ static bool check_complex_statements(parse_frame_t &frm, chunk_t &pc);
 static bool handle_complex_close(parse_frame_t *frm, chunk_t *pc);
 
 
-static size_t preproc_start(parse_frame_t *frm, chunk_t *pc)
+static size_t preproc_start(parse_frame_t &frm, chunk_t &pc)
 {
    LOG_FUNC_ENTRY();
    chunk_t *next;
    size_t  pp_level = cpd.pp_level;
 
    // Get the type of preprocessor and handle it
-   next = chunk_get_next_ncnl(pc);
+   next = chunk_get_next_ncnl(&pc);
    if (next != nullptr)
    {
       cpd.in_preproc = next->type;
@@ -104,22 +104,22 @@ static size_t preproc_start(parse_frame_t *frm, chunk_t *pc)
       // If we are in a define, push the frame stack.
       if (cpd.in_preproc == CT_PP_DEFINE)
       {
-         pf_push(frm);
+         pf_push(&frm);
 
          // a preproc body starts a new, blank frame
-         memset(frm, 0, sizeof(*frm));
-         frm->level       = 1;
-         frm->brace_level = 1;
+         memset(&frm, 0, sizeof(frm));
+         frm.level       = 1;
+         frm.brace_level = 1;
 
          // TODO: not sure about the next 3 lines
-         frm->pse_tos                 = 1;
-         frm->pse[frm->pse_tos].type  = CT_PP_DEFINE;
-         frm->pse[frm->pse_tos].stage = brace_stage_e::NONE;
+         frm.pse_tos                = 1;
+         frm.pse[frm.pse_tos].type  = CT_PP_DEFINE;
+         frm.pse[frm.pse_tos].stage = brace_stage_e::NONE;
       }
       else
       {
          // Check for #if, #else, #endif, etc
-         pp_level = pf_check(frm, pc);
+         pp_level = pf_check(&frm, &pc);
       }
    }
    return(pp_level);
@@ -186,7 +186,7 @@ void brace_cleanup(void)
       size_t pp_level = cpd.pp_level;
       if (pc->type == CT_PREPROC)
       {
-         pp_level = preproc_start(&frm, pc);
+         pp_level = preproc_start(frm, *pc);
       }
 
       // Do before assigning stuff from the frame
