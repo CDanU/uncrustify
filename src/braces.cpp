@@ -929,20 +929,22 @@ void add_long_closebrace_comment(void)
                else if (br_open->parent_type == CT_NAMESPACE)
                {
                   nl_min = cpd.settings[UO_mod_add_long_namespace_closebrace_comment].u;
-                  // 76007 Explicit null dereferenced, 2016-03-17
-                  tag_pc = ns_pc;
-
-                  /*
-                   * obtain the next chunk, normally this is the name of the namespace
-                   * and append it to generate "namespace xyz"
-                   */
-                  xstr = ns_pc->str;
-                  xstr.append(" ");
-
-                  const chunk_t *tmp_next = chunk_get_next(ns_pc);
-                  if (tag_pc != nullptr)
+                  if (ns_pc != nullptr)
                   {
-                     append_tag_name(xstr, *tmp_next);
+                     tag_pc = ns_pc;
+
+                     /*
+                      * obtain the next chunk, normally this is the name of the namespace
+                      * and append it to generate "namespace xyz"
+                      */
+                     xstr = tag_pc->str;
+                     xstr.append(" ");
+
+                     const chunk_t *tmp_next = chunk_get_next(tag_pc);
+                     if (tmp_next != nullptr)
+                     {
+                        append_tag_name(xstr, *tmp_next);
+                     }
                   }
                }
                else if (  br_open->parent_type == CT_CLASS
