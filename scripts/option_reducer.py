@@ -29,6 +29,7 @@ from collections import OrderedDict
 from threading import Timer
 from multiprocessing.pool import Pool
 from itertools import combinations
+from re import match
 
 FLAGS = None
 NULL_DEV = "/dev/null" if os_name != "nt" else "nul"
@@ -40,7 +41,7 @@ def enum(**enums):
 
 RESTULTSFLAG = enum(NONE=0, REMOVE=1, KEEP=2)
 ERROR_CODE = enum(NONE=0, FLAGS=200, SANITY0=201, SANITY1=202)
-MODES = ("reduce", "no-default", "no-default-safe")
+MODES = ("reduce", "no-default", "no-default-safe", "align")
 
 
 @contextmanager
@@ -570,10 +571,16 @@ def print_config(config_list, target_file_obj=stdout, exclude_idx=()):
         except TypeError:
             exclude_idx = [exclude_idx]
 
+    special_keys = {'macro-open', 'macro-else', 'macro-close', 'set', 'type',
+                    'file_ext', 'define', 'include'}
+
     # extracted first loop round:
     # do not print '\n' for the ( here non-existing) previous line
     if exclude_idx[0] != 0:
-        print("%s = %s" % (config_list[0][0].ljust(31, ' '), config_list[0][1]),
+        print("%s %s %s"
+              % (config_list[0][0].ljust(31, ' '),
+                 '=' if config_list[0][0] not in special_keys else ' ',
+                 config_list[0][1]),
               end='', file=target_file_obj)
     # also print space if a single option was provided and it is going to be
     # excluded. This is done in order to be able to differentiate between
@@ -587,16 +594,20 @@ def print_config(config_list, target_file_obj=stdout, exclude_idx=()):
         end = min(end, config_list_len)
 
         for idx in range(start_idx, end):
-            print("\n%s = %s"
-                  % (config_list[idx][0].ljust(31, ' '), config_list[idx][1]),
+            print("\n%s %s %s"
+                  % (config_list[idx][0].ljust(31, ' '),
+                     '=' if config_list[0][0] not in special_keys else ' ',
+                     config_list[idx][1]),
                   end='', file=target_file_obj)
 
         start_idx = min(end + 1, config_list_len)
 
     # after
     for idx in range(start_idx, config_list_len):
-        print("\n%s = %s"
-              % (config_list[idx][0].ljust(31, ' '), config_list[idx][1]),
+        print("\n%s %s %s"
+              % (config_list[idx][0].ljust(31, ' '),
+                 '=' if config_list[0][0] not in special_keys else ' ',
+                 config_list[idx][1]),
               end='', file=target_file_obj)
 
 
@@ -1000,15 +1011,15 @@ def no_default_safe_mode():
             print("%s" % '# '.ljust(78, '-'))
 
         for l in cfg_lines:
+            # remove empty lines
+            if match('^\s*$', l):
+                continue
+
             # parse line, check if it is not an option that needs to be removed
             # except include
             config_t = parse_config_line(l)
-
-            if config_t[0] == 'include':
-                config_t = ("", "")
-
             if config_t[0]:
-                if config_t[0] in options_list:
+                if config_t[0] != 'include' and config_t[0] in options_list:
                     rem_count += 1
                     continue
 
@@ -1032,6 +1043,23 @@ def no_default_safe_mode():
     return ERROR_CODE.NONE
 
 
+def align_options():
+    config_lines = []
+    with open(FLAGS.config_file_path, 'r') as f:
+        for l in f:
+            config_t = parse_config_line(l)
+            if config_t[0]:
+                print_config([config_t], target_file_obj=stdout)
+
+                pound_pos = l.find('#')
+                if pound_pos != -1:
+                    print("  %s" % l[pound_pos:], end="")
+                else:
+                    print("")
+            else:
+                print(l, end="")
+
+
 def main():
     """
     calls the mode that was specified by the -m script argument,
@@ -1049,6 +1077,8 @@ def main():
         return no_default_mode()
     if FLAGS.mode == MODES[2]:
         return no_default_safe_mode()
+    if FLAGS.mode == MODES[3]:
+        return align_options()
 
     return reduce_mode()
 
