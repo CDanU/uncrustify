@@ -29,7 +29,7 @@ from collections import OrderedDict
 from threading import Timer
 from multiprocessing.pool import Pool
 from itertools import combinations
-from re import match
+from re import match, search
 
 FLAGS = None
 NULL_DEV = "/dev/null" if os_name != "nt" else "nul"
@@ -540,6 +540,17 @@ def sanity_run_splitter(uncr_bin, config_list, input_files, formatted_files,
     return False not in sr
 
 
+def strip_extract_first(v0, v1):
+    v_strip = v1.strip()
+    re_s = search('\s', v_strip)
+    if re_s:
+        idx = re_s.span()[0]
+        v0 += " "+v_strip[0:idx]
+        v1 = v_strip[idx:].strip()
+
+    return v0, v1
+
+
 def print_config(config_list, target_file_obj=stdout, exclude_idx=()):
     """
     prints config options into a config file
@@ -558,18 +569,25 @@ def print_config(config_list, target_file_obj=stdout, exclude_idx=()):
     """
 
     if not config_list:
+        print(' ', end='', file=target_file_obj)
         return
     config_list_len = len(config_list)
 
-    # check if exclude_idx list is empty -> assign len
-    if type(exclude_idx) in (list, tuple) and not exclude_idx:
-        exclude_idx = [config_list_len]
-    else:
-        # sort it, unless it is an int -> transform into a list
-        try:
-            exclude_idx = sorted(exclude_idx)
-        except TypeError:
-            exclude_idx = [exclude_idx]
+    # sort exclude_idx, unless it is an int -> transform into a list
+    try:
+        exclude_idx = sorted(exclude_idx)
+    except TypeError:
+        exclude_idx = [exclude_idx]
+    # add list end to process the last group in one loop
+    exclude_idx.append(config_list_len)
+
+    special_keys = {'macro-open', 'macro-else', 'macro-close', 'set', 'type',
+                    'file_ext', 'define', 'include'}
+
+    print_func = lambda p0, p1, p2, f=target_file_obj: \
+        print("%s %s %s" % (p0.ljust(31, ' '), p1, p2), end='', file=f)
+    print_n = lambda p0, p1: print_func(p0, '=', p1)
+    print_s = lambda p0, p1: print_func(p0, ' ', p1)
 
     special_keys = {'macro-open', 'macro-else', 'macro-close', 'set', 'type',
                     'file_ext', 'define', 'include'}
@@ -577,38 +595,40 @@ def print_config(config_list, target_file_obj=stdout, exclude_idx=()):
     # extracted first loop round:
     # do not print '\n' for the ( here non-existing) previous line
     if exclude_idx[0] != 0:
-        print("%s %s %s"
-              % (config_list[0][0].ljust(31, ' '),
-                 '=' if config_list[0][0] not in special_keys else ' ',
-                 config_list[0][1]),
-              end='', file=target_file_obj)
-    # also print space if a single option was provided and it is going to be
-    # excluded. This is done in order to be able to differentiate between
-    # --empty-nochange and the case where all options can be removed
-    elif config_list_len == 1:
-        print(' ', end='', file=target_file_obj)
-        return
+        key = config_list[0][0]
+        value = config_list[0][1]
+        print_f = print_n if key not in special_keys else print_s
+
+        if key in special_keys:
+            key, value = strip_extract_first(key, value)
+
+        print_f(key, value)
+
+    # # also print space if a single option was provided and it is going to be
+    # # excluded. This is done in order to be able to differentiate between
+    # # --empty-nochange and the case where all options can be removed
+    # elif config_list_len == 1:
+    #     print(' ', end='', file=target_file_obj)
+    #     return
 
     start_idx = 1
     for end in exclude_idx:
         end = min(end, config_list_len)
 
         for idx in range(start_idx, end):
-            print("\n%s %s %s"
-                  % (config_list[idx][0].ljust(31, ' '),
-                     '=' if config_list[0][0] not in special_keys else ' ',
-                     config_list[idx][1]),
-                  end='', file=target_file_obj)
+            print("", file=target_file_obj)  # '\n'
+
+            key = config_list[idx][0]
+            value = config_list[idx][1]
+
+            print_f = print_n if key not in special_keys else print_s
+
+            if key in special_keys:
+                key, value = strip_extract_first(key, value)
+
+            print_f(key, value)
 
         start_idx = min(end + 1, config_list_len)
-
-    # after
-    for idx in range(start_idx, config_list_len):
-        print("\n%s %s %s"
-              % (config_list[idx][0].ljust(31, ' '),
-                 '=' if config_list[0][0] not in special_keys else ' ',
-                 config_list[idx][1]),
-              end='', file=target_file_obj)
 
 
 def get_non_default_options(unc_bin_path, cfg_file_path):
