@@ -19,9 +19,13 @@
 #include "chunk_list.h"
 
 #include <vector>
-
+#include <string>
+#include <stdexcept>
 
 using std::vector;
+using std::logic_error;
+using std::string;
+using std::to_string;
 
 
 //! Converts a single brace into a virtual brace
@@ -156,6 +160,76 @@ static bool paren_multiline_before_brace(chunk_t *brace)
 }
 
 
+static void mark_oneLiner_and_empty(void)
+{
+   chunk_t *pc = chunk_get_head();
+
+   while ((pc = chunk_get_next_ncnl(pc)) != nullptr)
+   {
+      if (!chunk_is_opening_brace(pc))
+      {
+         continue;
+      }
+
+      chunk_t         *br_open     = pc;
+      const c_token_t closing_type = c_token_t(br_open->type + 1);
+
+      // Detect empty bodies
+      chunk_t *next = chunk_get_next_ncnl(pc);
+      if (chunk_is_token(next, closing_type))
+      {
+         chunk_flags_set(br_open, PCF_EMPTY_BODY);
+         chunk_flags_set(next, PCF_EMPTY_BODY);
+      }
+
+      // Scan for the brace close or a newline token
+      const size_t brace_level       = br_open->level;
+      const size_t brace_brace_level = br_open->brace_level;
+
+      chunk_t      *br_close = chunk_search(
+         br_open,
+         [closing_type, brace_level, brace_brace_level](chunk_t *c)
+      {
+         // terminate search if a matching closing brace is found or ...
+         return(  (c->type == closing_type && c->level == brace_level)
+               || c->level < brace_level              // level dips       -> no match
+               || c->brace_level < brace_brace_level  // brace_level dips -> no match
+               || c->type == CT_NEWLINE);             // newline is found -> no match
+      });
+      if (  !chunk_is_token(br_close, closing_type)
+         || br_close->level != brace_level
+         || br_close->brace_level != brace_brace_level)
+      {
+         continue;
+      }
+
+      chunk_t *prev_prev = chunk_search(
+         br_open,
+         [brace_level, brace_brace_level](chunk_t *c)
+      {
+         // terminate on first token that is not part of the one-liner:
+         return(  c->level < brace_level                    // level dips
+               || c->brace_level < brace_brace_level        // brace_level dips
+               || c->type == CT_NEWLINE                     // newline is found
+               || (  c->type == CT_SEMICOLON                // a block delimiting
+                  && c->level == brace_level                //  semicolon is found
+                  && c->brace_level == brace_brace_level)); //  example: class A{}; class B{};
+      },
+         scope_e::ALL, direction_e::BACKWARD);
+
+      chunk_t *prev = (prev_prev != nullptr) ? chunk_get_next(prev_prev)
+                      : chunk_get_head();
+      if (prev == nullptr)
+      {
+         throw logic_error(string(__FILE__) + ":" + to_string(__LINE__)
+                           + " Hit a condition that should never occur");
+      }
+
+      flag_series(prev, br_close, PCF_ONE_LINER);
+   }
+} // mark_oneLiner_and_empty
+
+
 void do_braces(void)
 {
    LOG_FUNC_ENTRY();
@@ -185,39 +259,7 @@ void do_braces(void)
       convert_vbrace_to_brace();
    }
 
-   // Mark one-liners
-   chunk_t *pc = chunk_get_head();
-   while ((pc = chunk_get_next_ncnl(pc)) != nullptr)
-   {
-      if (pc->type != CT_BRACE_OPEN && pc->type != CT_VBRACE_OPEN)
-      {
-         continue;
-      }
-      chunk_t         *br_open = pc;
-      const c_token_t brc_type = c_token_t(pc->type + 1); // corresponds to closing type
-      // Detect empty bodies
-      chunk_t         *tmp = chunk_get_next_ncnl(pc);
-      if (chunk_is_token(tmp, brc_type))
-      {
-         chunk_flags_set(br_open, PCF_EMPTY_BODY);
-         chunk_flags_set(tmp, PCF_EMPTY_BODY);
-      }
-
-      // Scan for the brace close or a newline
-      tmp = br_open;
-      while ((tmp = chunk_get_next_nc(tmp)) != nullptr)
-      {
-         if (chunk_is_newline(tmp))
-         {
-            break;
-         }
-         if (tmp->type == brc_type && br_open->level == tmp->level)
-         {
-            flag_series(br_open, tmp, PCF_ONE_LINER);
-            break;
-         }
-      }
-   }
+   mark_oneLiner_and_empty();
 
    if (cpd.settings[UO_mod_case_brace].a != AV_IGNORE)
    {

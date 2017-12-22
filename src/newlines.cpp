@@ -2166,6 +2166,13 @@ static void newline_func_def_or_call(chunk_t *start)
    bool    is_call = (start->parent_type == CT_FUNC_CALL)
                      || start->parent_type == CT_FUNC_CALL_USER;
 
+   if (  !is_call
+      && (start->flags & PCF_ONE_LINER)
+      && cpd.settings[UO_nl_func_leave_one_liners].b)
+   {
+      return;
+   }
+
    if (is_call)
    {
       argval_t atmp = cpd.settings[UO_nl_func_call_paren].a;
@@ -2434,6 +2441,31 @@ static bool one_liner_nl_ok(chunk_t *pc)
       LOG_FMT(LNL1LINE, "%s(%d): true (not 1-liner), a new line may be added\n", __func__, __LINE__);
       return(true);
    }
+
+   // problem lambda bracket levels are not incremented
+//   const auto search_lambda = [](chunk_t *c)
+//   {
+//      // terminate on
+//      return(  chunk_is_opening_brace(c)   // first opening brace
+//            || !(c->flags & PCF_ONE_LINER) // first non one-liner chunk
+//            || c->type == CT_NEWLINE       // or newline
+//            || (  c->type == CT_SEMICOLON                // a block delimiting
+//                  && c->level == brace_level                //  semicolon is found
+//                  && c->brace_level == brace_brace_level)); //  example: class A{}; class B{};
+//   };
+//
+//   // chunk could be part of multiple one liners:
+//   // class A{ void f(int i){ if( g([](){}) ){}; if( g([](){}) ){} } };
+//   //
+//   chunk_t *prev_cb = chunk_search(pc, search_lambda, scope_e::ALL,
+//                                   direction_e::BACKWARD);
+//   if(prev_cb != nullptr
+//       || prev_cb->type != CT_NEWLINE
+//       || (prev_cb->flags & PCF_ONE_LINER))
+//   {
+//       chunk_t *prev_cb_prev = chunk_get_prev(prev_cb);
+//   }
+
 
    // Step back to find the opening brace
    chunk_t *br_open = pc;

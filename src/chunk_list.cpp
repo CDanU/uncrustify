@@ -20,17 +20,6 @@ typedef ListManager<chunk_t> ChunkList_t;
 
 
 /**
- * use this enum to define in what direction or location an
- * operation shall be performed.
- */
-enum class direction_e : unsigned int
-{
-   FORWARD,
-   BACKWARD
-};
-
-
-/**
  * @brief prototype for a function that checks a chunk to have a given type
  *
  * @note this typedef defines the function type "check_t"
@@ -48,33 +37,6 @@ typedef bool (*check_t)(chunk_t *pc);
  * chunk_t *function(chunk_t *cur, nav_t scope)
  */
 typedef chunk_t * (*search_t)(chunk_t *cur, scope_e scope);
-
-
-/**
- * @brief search for a chunk that satisfies a condition in a chunk list
- *
- * A generic function that traverses a chunks list either
- * in forward or reverse direction. The traversal continues until a
- * chunk satisfies the condition defined by the compare function.
- * Depending on the parameter cond the condition will either be
- * checked to be true or false.
- *
- * Whenever a chunk list traversal is to be performed this function
- * shall be used. This keeps the code clear and easy to understand.
- *
- * If there are performance issues this function might be worth to
- * be optimized as it is heavily used.
- *
- * @param  cur        chunk to start search at
- * @param  check_fct  compare function
- * @param  scope      code parts to consider for search
- * @param  dir        search direction
- * @param  cond       success condition
- *
- * @retval nullptr  no requested chunk was found or invalid parameters provided
- * @retval chunk_t  pointer to the found chunk
- */
-static chunk_t *chunk_search(chunk_t *cur, const check_t check_fct, const scope_e scope = scope_e::ALL, const direction_e dir = direction_e::FORWARD, const bool cond = true);
 
 
 static void chunk_log(chunk_t *pc, const char *text);
@@ -298,24 +260,6 @@ static chunk_t *chunk_search_str(chunk_t *cur, const char *str, size_t len, scop
    } while (  pc != nullptr            // the end of the list was not reached yet
            && (is_expected_string_and_level(pc, str, level, len) == false));
    return(pc);                         // the latest chunk is the searched one
-}
-
-
-static chunk_t *chunk_search(chunk_t *cur, const check_t check_fct, const scope_e scope,
-                             const direction_e dir, const bool cond)
-{
-   /*
-    * Depending on the parameter dir the search function searches
-    * in forward or backward direction */
-   search_t search_function = select_search_fct(dir);
-   chunk_t  *pc             = cur;
-
-   do                                   // loop over the chunk list
-   {
-      pc = search_function(pc, scope);  // in either direction while
-   } while (  pc != nullptr             // the end of the list was not reached yet
-           && (check_fct(pc) != cond)); // and the demanded chunk was not found either
-   return(pc);                          // the latest chunk is the searched one
 }
 
 
