@@ -44,7 +44,7 @@ def proc(bin_path, args_arr=()):
     :param bin_path: string
         path to the binary that is going to be called
 
-    args_arr : list/tuple
+    :param args_arr : list/tuple
         all needed arguments
 
 
@@ -152,7 +152,6 @@ def check_generated_output(gen_expected_path, gen_result_path, result_manip=None
             gen_res_txt = result_manip(gen_res_txt)
 
     if gen_res_txt != gen_exp_txt:
-
         with open(gen_result_path, 'w', encoding="utf-8", newline="") as f:
                 f.write(gen_res_txt)
 
@@ -212,7 +211,7 @@ def check_std_output(expected_path, result_path, result_str, result_manip=None):
     return True
 
 
-def check_output(
+def check_uncrustify_output(
         uncr_bin, args_arr=(),
         out_expected_path=None, out_result_manip=None, out_result_path=None,
         err_expected_path=None, err_result_manip=None, err_result_path=None,
@@ -416,7 +415,7 @@ def s_path_join(path, *paths):
     """
     Wrapper for the os.path.join function, splits every path component to
     replace it wit a system specific path separator. This is for consistent
-    path separators (and also systems that don't use either \ or /)
+    path separators (and also systems that don't use either '\' or '/')
 
 
     Parameter
@@ -429,7 +428,7 @@ def s_path_join(path, *paths):
         a joined path, see os.path.join
 
     >>> s_path_join('./z/d/', '../a/b/c/f')
-    ".\z\a\b\c\f"
+    r'.\z\a\b\c\f'
     """
     p_splits = list(path_split(path))
     for r in map(path_split, paths):
@@ -465,7 +464,7 @@ def main(args):
           for now rely on the ../../build/Release/ location
     '''
     if os_name != 'nt' and not check_build_type(
-                'release', s_path_join(sc_dir, '../../build/CMakeCache.txt')):
+            'release', s_path_join(sc_dir, '../../build/CMakeCache.txt')):
         sys_exit(EX_USAGE)
 
     clear_dir("./Results")
@@ -475,7 +474,7 @@ def main(args):
     #
     # Test help
     #   -h -? --help --usage
-    if not check_output(
+    if not check_uncrustify_output(
             uncr_bin,
             out_expected_path=s_path_join(sc_dir, 'Output/help.txt'),
             out_result_path=s_path_join(sc_dir, 'Results/help.txt'),
@@ -489,7 +488,7 @@ def main(args):
     #
     # Test --show-config
     #
-    if not check_output(
+    if not check_uncrustify_output(
             uncr_bin,
             args_arr=['--show-config'],
             out_expected_path=s_path_join(sc_dir, 'Output/show_config.txt'),
@@ -500,7 +499,7 @@ def main(args):
     #
     # Test --update-config
     #
-    if not check_output(
+    if not check_uncrustify_output(
             uncr_bin,
             args_arr=['-c', s_path_join(sc_dir, 'Config/mini_d.cfg'),
                       '--update-config'],
@@ -512,7 +511,7 @@ def main(args):
             err_result_manip=string_replace('\\', '/')):
         return_flag = False
 
-    if not check_output(
+    if not check_uncrustify_output(
             uncr_bin,
             args_arr=['-c', s_path_join(sc_dir, 'Config/mini_nd.cfg'),
                       '--update-config'],
@@ -527,7 +526,7 @@ def main(args):
     #
     # Test --update-config-with-doc
     #
-    if not check_output(
+    if not check_uncrustify_output(
             uncr_bin,
             args_arr=['-c', s_path_join(sc_dir, 'Config/mini_d.cfg'),
                       '--update-config-with-doc'],
@@ -539,7 +538,7 @@ def main(args):
             err_result_manip=string_replace('\\', '/')):
         return_flag = False
 
-    if not check_output(
+    if not check_uncrustify_output(
             uncr_bin,
             args_arr=['-c', s_path_join(sc_dir, 'Config/mini_nd.cfg'),
                       '--update-config-with-doc'],
@@ -554,7 +553,7 @@ def main(args):
     #
     # Test -p
     #
-    if not check_output(
+    if not check_uncrustify_output(
             uncr_bin,
             args_arr=['-c', s_path_join(sc_dir, 'Config/mini_nd.cfg'),
                       '-f', s_path_join(sc_dir, 'Input/testSrc.cpp'),
@@ -569,7 +568,7 @@ def main(args):
     # look at src/log_levels.h
     Ls_A = ['9', '21', '25', '28', '31', '36', '66', '92']
     for L in Ls_A:
-        if not check_output(
+        if not check_uncrustify_output(
                 uncr_bin,
                 args_arr=['-c', NULL_DEVICE, '-L', L, '-o', NULL_DEVICE,
                           '-f', s_path_join(sc_dir, 'Input/testSrc.cpp')],
@@ -579,7 +578,7 @@ def main(args):
             return_flag = False
 
     # Test logger buffer overflow
-    if not check_output(
+    if not check_uncrustify_output(
             uncr_bin,
             args_arr=['-c', NULL_DEVICE, '-L', '99', '-o', NULL_DEVICE,
                       '-f', s_path_join(sc_dir, 'Input/logger.cs')],
@@ -591,11 +590,11 @@ def main(args):
     # misc error_tests
     error_tests = ["I-842", "unmatched_close_pp"]
     for test in error_tests:
-        if not check_output(
+        if not check_uncrustify_output(
                 uncr_bin,
-                args_arr=['-q', '-c', s_path_join(sc_dir, 'Config/%s.cfg' % test),
+                args_arr=['-c', s_path_join(sc_dir, 'Config/%s.cfg' % test),
                           '-f', s_path_join(sc_dir, 'Input/%s.cpp' % test),
-                          '-o', NULL_DEVICE],
+                          '-o', NULL_DEVICE, '-q'],
                 err_expected_path=s_path_join(sc_dir, 'Output/%s.txt' % test),
                 err_result_path=s_path_join(sc_dir, 'Results/%s.txt' % test)):
             return_flag = False
