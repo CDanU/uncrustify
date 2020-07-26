@@ -1,6 +1,8 @@
 *                            text=auto
 
-tests/**                     -text
+tests/**                     -text linguist-vendored
+tests/test_uncrustify/**     -linguist-vendored
+
 
 src/**                       eol=lf
 scripts/**                   eol=lf
